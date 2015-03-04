@@ -715,6 +715,7 @@ class Visualization extends ViewDataTable
 
     /**
      * @internal
+     * 
      * @return array
      */
     public function buildApiRequestArray()
