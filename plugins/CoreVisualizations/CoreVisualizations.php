@@ -41,7 +41,7 @@ class CoreVisualizations extends \Piwik\Plugin
 
     public function addViewDataTable(&$viewDataTable)
     {
-        if (Common::getRequestVar('pivotBy', '') && Common::getRequestVar('pivotByColumn', '')) {
+        if (Common::getRequestVar('pivotBy', '')) {
             $tableToRemove = 'Visualizations\HtmlTable';
         } else {
             $tableToRemove = 'HtmlTable\PivotBy';
