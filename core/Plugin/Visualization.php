@@ -397,7 +397,7 @@ class Visualization extends ViewDataTable
         $postProcessor = $this->makeDataTablePostProcessor(); // must be created after requestConfig is final
         $self = $this;
 
-        $postProcessor->setCallbackBeforeGenericFilters(function (DataTable\DataTableInterface $dataTable) use ($self) {
+        $postProcessor->setCallbackBeforeGenericFilters(function (DataTable\DataTableInterface $dataTable) use ($self, $postProcessor) {
 
             // First, filters that delete rows
             foreach ($self->config->getPriorityFilters() as $filter) {
@@ -408,9 +408,11 @@ class Visualization extends ViewDataTable
 
             if (!in_array($self->requestConfig->filter_sort_column, $self->config->columns_to_display)) {
                 $hasNbUniqVisitors = in_array('nb_uniq_visitors', $self->config->columns_to_display);
-                $self->requestConfig->setDefaultSort($self->config->columns_to_display, $hasNbUniqVisitors, $dataTable->getColumns());
+                $columns = $dataTable->getColumns();
+                $self->requestConfig->setDefaultSort($self->config->columns_to_display, $hasNbUniqVisitors, $columns);
             }
 
+            $postProcessor->setRequest($self->buildApiRequestArray());
         });
 
         $postProcessor->setCallbackAfterGenericFilters(function (DataTable\DataTableInterface $dataTable) use ($self) {
@@ -712,9 +714,10 @@ class Visualization extends ViewDataTable
     }
 
     /**
+     * @internal
      * @return array
      */
-    private function buildApiRequestArray()
+    public function buildApiRequestArray()
     {
         $requestArray = $this->request->getRequestArray();
         $request = APIRequest::getRequestArrayFromString($requestArray);

@@ -69,7 +69,7 @@ class DataTablePostProcessor
     {
         $this->apiModule = $apiModule;
         $this->apiMethod = $apiMethod;
-        $this->request = $request;
+        $this->setRequest($request);
 
         $this->report = Report::factory($apiModule, $apiMethod);
         $this->apiInconsistencies = new Inconsistencies();
@@ -79,6 +79,11 @@ class DataTablePostProcessor
     public function setFormatter(Formatter $formatter)
     {
         $this->formatter = $formatter;
+    }
+
+    public function setRequest($request)
+    {
+        $this->request = $request;
     }
 
     public function setCallbackBeforeGenericFilters($callbackBeforeGenericFilters)
