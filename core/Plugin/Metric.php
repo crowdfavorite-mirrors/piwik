@@ -124,10 +124,10 @@ abstract class Metric
 
             return $value;
 
-        } else {
-            $value = null;
+        } elseif (!empty($row)) {
+            
             if (array_key_exists($columnName, $row)) {
-                $value = $row[$columnName];
+                return $row[$columnName];
             } else {
 
                 if (empty($mappingNameToId)) {
@@ -142,10 +142,9 @@ abstract class Metric
                     }
                 }
             }
-
         }
 
-        return $value;
+        return null;
     }
 
     /**
