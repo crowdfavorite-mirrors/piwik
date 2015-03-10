@@ -27,8 +27,9 @@ class UIAssetCacheBuster extends Singleton
      */
     public function piwikVersionBasedCacheBuster($pluginNames = false)
     {
-        $masterFile = PIWIK_INCLUDE_PATH . '/.git/refs/heads/master';
-        $currentGitHash = file_exists($masterFile) ? @file_get_contents($masterFile) : null;
+// CF -- disabled to prevent numerous wanrings from popping up.
+//        $masterFile = PIWIK_INCLUDE_PATH . '/.git/refs/heads/master';
+        $currentGitHash = @file_exists($masterFile) ? @file_get_contents($masterFile) : null;
 
         $pluginNames = !$pluginNames ? Manager::getInstance()->getLoadedPluginsName() : $pluginNames;
         sort($pluginNames);
