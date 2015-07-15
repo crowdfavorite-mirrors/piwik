@@ -765,6 +765,75 @@ class GoalManager
         $url = Common::unsanitizeInputValue($url);
         $goal['pattern'] = Common::unsanitizeInputValue($goal['pattern']);
 
+        $match = $this->isGoalPatternMatchingUrl($goal, $pattern_type, $url);
+
+        if (!$match) {
+            // Users may set Goal matching URL as URL encoded
+            $goal['pattern'] = urldecode($goal['pattern']);
+
+            $match = $this->isGoalPatternMatchingUrl($goal, $pattern_type, $url);
+        }
+        return $match;
+    }
+
+    /**
+     * @param ConversionDimension[] $dimensions
+     * @param string $hook
+     * @param Visitor $visitor
+     * @param Action|null $action
+     * @param array|null $valuesToUpdate If null, $this->visitorInfo will be updated
+     *
+     * @return array|null The updated $valuesToUpdate or null if no $valuesToUpdate given
+     */
+    private function triggerHookOnDimensions($dimensions, $hook, $visitor, $action, $valuesToUpdate)
+    {
+        foreach ($dimensions as $dimension) {
+            $value = $dimension->$hook($this->request, $visitor, $action, $this);
+
+            if (false !== $value) {
+                if (is_float($value)) {
+                    $value = Common::forceDotAsSeparatorForDecimalPoint($value);
+                }
+
+                $fieldName = $dimension->getColumnName();
+                $visitor->setVisitorColumn($fieldName, $value);
+
+                $valuesToUpdate[$fieldName] = $value;
+            }
+        }
+
+        return $valuesToUpdate;
+    }
+
+    private function getGoalFromVisitor(Visitor $visitor, $visitorInformation, $action)
+    {
+        $goal = array(
+            'idvisit'     => $visitorInformation['idvisit'],
+            'idvisitor'   => $visitorInformation['idvisitor'],
+            'server_time' => Date::getDatetimeFromTimestamp($visitorInformation['visit_last_action_time'])
+        );
+
+        $visitDimensions = VisitDimension::getAllDimensions();
+
+        foreach ($visitDimensions as $dimension) {
+            $value = $dimension->onAnyGoalConversion($this->request, $visitor, $action);
+            if (false !== $value) {
+                $goal[$dimension->getColumnName()] = $value;
+            }
+        }
+
+        return $goal;
+    }
+
+    /**
+     * @param $goal
+     * @param $pattern_type
+     * @param $url
+     * @return bool
+     * @throws Exception
+     */
+    protected function isGoalPatternMatchingUrl($goal, $pattern_type, $url)
+    {
         switch ($pattern_type) {
             case 'regex':
                 $pattern = $goal['pattern'];
@@ -799,57 +868,6 @@ class GoalManager
                 throw new Exception(Piwik::translate('General_ExceptionInvalidGoalPattern', array($pattern_type)));
                 break;
         }
-
         return $match;
-    }
-
-    /**
-     * @param ConversionDimension[] $dimensions
-     * @param string $hook
-     * @param Visitor $visitor
-     * @param Action|null $action
-     * @param array|null $valuesToUpdate If null, $this->visitorInfo will be updated
-     *
-     * @return array|null The updated $valuesToUpdate or null if no $valuesToUpdate given
-     */
-    private function triggerHookOnDimensions($dimensions, $hook, $visitor, $action, $valuesToUpdate)
-    {
-        foreach ($dimensions as $dimension) {
-            $value = $dimension->$hook($this->request, $visitor, $action, $this);
-
-            if (false !== $value) {
-
-                if (is_float($value)) {
-                    $value = Common::forceDotAsSeparatorForDecimalPoint($value);
-                }
-
-                $fieldName = $dimension->getColumnName();
-                $visitor->setVisitorColumn($fieldName, $value);
-
-                $valuesToUpdate[$fieldName] = $value;
-            }
-        }
-
-        return $valuesToUpdate;
-    }
-
-    private function getGoalFromVisitor(Visitor $visitor, $visitorInformation, $action)
-    {
-        $goal = array(
-            'idvisit'     => $visitorInformation['idvisit'],
-            'idvisitor'   => $visitorInformation['idvisitor'],
-            'server_time' => Date::getDatetimeFromTimestamp($visitorInformation['visit_last_action_time'])
-        );
-
-        $visitDimensions = VisitDimension::getAllDimensions();
-
-        foreach ($visitDimensions as $dimension) {
-            $value = $dimension->onAnyGoalConversion($this->request, $visitor, $action);
-            if (false !== $value) {
-                $goal[$dimension->getColumnName()] = $value;
-            }
-        }
-
-        return $goal;
     }
 }

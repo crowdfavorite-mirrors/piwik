@@ -115,4 +115,92 @@ class HttpTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue(is_numeric($result['headers']['Content-Length']), "Content-Length header not numeric!");
         $this->assertTrue(in_array($result['headers']['Content-Type'], array('application/zip', 'application/x-zip-compressed')));
     }
+
+    /**
+     * @dataProvider getMethodsToTest
+     */
+    public function testHttpAuthentication($method)
+    {
+        $result = Http::sendHttpRequestBy(
+            $method,
+            Fixture::getRootUrl() . 'tests/PHPUnit/Integration/Http/HttpAuthentication.php',
+            30,
+            $userAgent = null,
+            $destinationPath = null,
+            $file = null,
+            $followDepth = 0,
+            $acceptLanguage = false,
+            $acceptInvalidSslCertificate = false,
+            $byteRange = false,
+            $getExtendedInfo = true,
+            $httpMethod = 'GET',
+            $httpUsername = 'test',
+            $httpPassword = 'test'
+        );
+
+        $this->assertEquals('Authentication successful', $result['data']);
+        $this->assertEquals(200, $result['status']);
+    }
+
+    /**
+     * @dataProvider getMethodsToTest
+     */
+    public function testHttpAuthenticationInvalid($method)
+    {
+        $result = Http::sendHttpRequestBy(
+            $method,
+            Fixture::getRootUrl() . 'tests/PHPUnit/Integration/Http/HttpAuthentication.php',
+            30,
+            $userAgent = null,
+            $destinationPath = null,
+            $file = null,
+            $followDepth = 0,
+            $acceptLanguage = false,
+            $acceptInvalidSslCertificate = false,
+            $byteRange = false,
+            $getExtendedInfo = true,
+            $httpMethod = 'GET',
+            $httpUsername = '',
+            $httpPassword = ''
+        );
+
+        $this->assertEquals(401, $result['status']);
+    }
+
+    /**
+     * @dataProvider getMethodsToTest
+     */
+    public function testHttpsWorksWithValidCertificate($method)
+    {
+        $result = Http::sendHttpRequestBy($method, 'https://builds.piwik.org/LATEST', 10);
+
+        $this->assertStringMatchesFormat('%d.%d.%d', $result);
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage curl_exec: SSL
+     */
+    public function testCurlHttpsFailsWithInvalidCertificate()
+    {
+        Http::sendHttpRequestBy('curl', 'https://divezone.net', 10);
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage failed to open stream
+     */
+    public function testFopenHttpsFailsWithInvalidCertificate()
+    {
+        Http::sendHttpRequestBy('fopen', 'https://divezone.net', 10);
+    }
+
+    /**
+     * We check that HTTPS is not supported with the "socket" method
+     */
+    public function testSocketHttpsWorksEvenWithInvalidCertificate()
+    {
+        $result = Http::sendHttpRequestBy('socket', 'https://divezone.net', 10);
+        $this->assertNotEmpty($result);
+    }
 }

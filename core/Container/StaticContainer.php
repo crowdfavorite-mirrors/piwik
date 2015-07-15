@@ -20,32 +20,32 @@ use DI\Container;
 class StaticContainer
 {
     /**
-     * @var Container
+     * @var Container[]
      */
-    private static $container;
+    private static $containerStack = array();
 
     /**
-     * Optional environment config to load.
+     * Definitions to register in the container.
      *
-     * @var bool
+     * @var array[]
      */
-    private static $environment;
+    private static $definitions = array();
 
     /**
      * @return Container
      */
     public static function getContainer()
     {
-        if (self::$container === null) {
-            self::$container = self::createContainer();
+        if (empty(self::$containerStack)) {
+            throw new ContainerDoesNotExistException("The root container has not been created yet.");
         }
 
-        return self::$container;
+        return end(self::$containerStack);
     }
 
     public static function clearContainer()
     {
-        self::$container = null;
+        self::pop();
     }
 
     /**
@@ -53,28 +53,19 @@ class StaticContainer
      *
      * @param Container $container
      */
-    public static function set(Container $container)
+    public static function push(Container $container)
     {
-        self::$container = $container;
+        self::$containerStack[] = $container;
     }
 
-    /**
-     * @link http://php-di.org/doc/container-configuration.html
-     */
-    private static function createContainer()
+    public static function pop()
     {
-        $containerFactory = new ContainerFactory(self::$environment);
-        return $containerFactory->create();
+        array_pop(self::$containerStack);
     }
 
-    /**
-     * Set the application environment (cli, test, …) or null for the default one.
-     *
-     * @param string|null $environment
-     */
-    public static function setEnvironment($environment)
+    public static function addDefinitions(array $definitions)
     {
-        self::$environment = $environment;
+        self::$definitions[] = $definitions;
     }
 
     /**
@@ -87,5 +78,10 @@ class StaticContainer
     public static function get($name)
     {
         return self::getContainer()->get($name);
+    }
+
+    public static function getDefinitions()
+    {
+        return self::$definitions;
     }
 }

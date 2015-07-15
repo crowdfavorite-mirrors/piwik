@@ -45,7 +45,7 @@ class UrlHelper
                             $validQuery .= $name . '[]=' . $param . $separator;
                         }
                     }
-                } else if ($value === false) {
+                } elseif ($value === false) {
                     $validQuery .= $name . $separator;
                 } else {
                     $validQuery .= $name . '=' . $value . $separator;
@@ -101,6 +101,7 @@ class UrlHelper
      * We don't need a precise test here because the value comes from the website
      * tracked source code and the URLs may look very strange.
      *
+     * @api
      * @param string $url
      * @return bool
      */
@@ -154,6 +155,17 @@ class UrlHelper
         if (strlen($urlQuery) == 0) {
             return array();
         }
+
+        // TODO: this method should not use a cache. callers should instead have their own cache, configured through DI.
+        //       one undesirable side effect of using a cache here, is that this method can now init the StaticContainer, which makes setting
+        //       test environment for RequestCommand more complicated.
+        $cache    = Cache::getTransientCache();
+        $cacheKey = 'arrayFromQuery' . $urlQuery;
+
+        if ($cache->contains($cacheKey)) {
+            return $cache->fetch($cacheKey);
+        }
+
         if ($urlQuery[0] == '?') {
             $urlQuery = substr($urlQuery, 1);
         }
@@ -195,10 +207,13 @@ class UrlHelper
                     $nameToValue[$name] = array();
                 }
                 array_push($nameToValue[$name], $value);
-            } else if (!empty($name)) {
+            } elseif (!empty($name)) {
                 $nameToValue[$name] = $value;
             }
         }
+
+        $cache->save($cacheKey, $nameToValue);
+
         return $nameToValue;
     }
 
@@ -213,6 +228,7 @@ class UrlHelper
     public static function getParameterFromQueryString($urlQuery, $parameter)
     {
         $nameToValue = self::getArrayFromQueryString($urlQuery);
+
         if (isset($nameToValue[$parameter])) {
             return $nameToValue[$parameter];
         }
@@ -231,7 +247,10 @@ class UrlHelper
         $parsedUrl = parse_url($url);
         $result = '';
         if (isset($parsedUrl['path'])) {
-            $result .= substr($parsedUrl['path'], 1);
+            if (substr($parsedUrl['path'], 0, 1) == '/') {
+                $parsedUrl['path'] = substr($parsedUrl['path'], 1);
+            }
+            $result .= $parsedUrl['path'];
         }
         if (isset($parsedUrl['query'])) {
             $result .= '?' . $parsedUrl['query'];
@@ -346,7 +365,7 @@ class UrlHelper
                 $query = str_replace('&', '&amp;', strstr($query, '?'));
             }
             $searchEngineName = 'Google Images';
-        } else if ($searchEngineName === 'Google'
+        } elseif ($searchEngineName === 'Google'
             && (strpos($query, '&as_') !== false || strpos($query, 'as_') === 0)
         ) {
             $keys = array();

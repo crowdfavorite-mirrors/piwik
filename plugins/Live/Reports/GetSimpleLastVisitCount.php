@@ -30,7 +30,8 @@ class GetSimpleLastVisitCount extends Base
     {
         $lastMinutes = Config::getInstance()->General[Controller::SIMPLE_VISIT_COUNT_WIDGET_LAST_MINUTES_CONFIG_KEY];
 
-        $lastNData = Request::processRequest('Live.getCounters', array('lastMinutes' => $lastMinutes));
+        $params    = array('lastMinutes' => $lastMinutes, 'showColumns' => array('visits', 'visitors', 'actions'));
+        $lastNData = Request::processRequest('Live.getCounters', $params);
 
         $formatter = new Formatter();
 
@@ -47,8 +48,8 @@ class GetSimpleLastVisitCount extends Base
             'visits'      => Piwik::translate('General_NVisits'),
             'one_action'  => Piwik::translate('General_OneAction'),
             'actions'     => Piwik::translate('VisitsSummary_NbActionsDescription'),
-            'one_minute'  => Piwik::translate('General_OneMinute'),
-            'minutes'     => Piwik::translate('General_NMinutes')
+            'one_minute'  => Piwik::translate('Intl_OneMinute'),
+            'minutes'     => Piwik::translate('Intl_NMinutes')
         );
 
         return $view->render();

@@ -10,34 +10,15 @@ namespace Piwik\Tests\Integration;
 
 use Piwik\Common;
 use Piwik\Config;
-use Piwik\EventDispatcher;
 use Piwik\Piwik;
 use Piwik\Plugin;
 use Piwik\SettingsServer;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
+use Piwik\Tests\Framework\Mock\Tracker\Handler;
+use Piwik\Tests\Framework\Mock\Tracker\RequestSet;
 use Piwik\Tracker;
-use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
-use Piwik\Translate;
-
-class TestTracker extends Tracker
-{
-    public function __construct()
-    {
-        $this->isInstalled = true;
-    }
-
-    public function setIsNotInstalled()
-    {
-        $this->isInstalled = false;
-    }
-
-    public function disconnectDatabase()
-    {
-        parent::disconnectDatabase();
-    }
-}
 
 /**
  * @group TrackerTest
@@ -71,7 +52,6 @@ class TrackerTest extends IntegrationTestCase
         if($this->tracker) {
             $this->tracker->disconnectDatabase();
         }
-        EventDispatcher::getInstance()->clearObservers('Tracker.makeNewVisitObject');
         if (array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS)) {
             unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
         }
@@ -145,12 +125,11 @@ class TrackerTest extends IntegrationTestCase
 
         $this->assertFalse(SettingsServer::isTrackerApiRequest());
 
-        $this->assertTrue(Config::getInstance()->existsLocalConfig());
+        $this->assertTrue(is_readable(Config::getInstance()->getLocalPath()));
 
         $this->removeConfigFile();
-        Config::getInstance()->clear();
 
-        $this->assertFalse(Config::getInstance()->existsLocalConfig());
+        $this->assertFalse(is_readable(Config::getInstance()->getLocalPath()));
 
         Tracker::loadTrackerEnvironment();
 
@@ -250,6 +229,22 @@ class TrackerTest extends IntegrationTestCase
         $this->assertActionEquals('example.com', 2);
     }
 
+    public function test_trackRequest_shouldTrackOutlinkWithFragment()
+    {
+        $request = $this->buildRequest(array('idsite' => 1, 'link' => 'http://example.com/outlink#fragment-here', 'rec' => 1));
+        $this->tracker->trackRequest($request);
+
+        $this->assertActionEquals('http://example.com/outlink#fragment-here', 1);
+    }
+
+    public function test_trackRequest_shouldTrackDownloadWithFragment()
+    {
+        $request = $this->buildRequest(array('idsite' => 1, 'download' => 'http://example.com/file.zip#fragment-here&pk_campaign=Campaign param accepted here', 'rec' => 1));
+        $this->tracker->trackRequest($request);
+
+        $this->assertActionEquals('http://example.com/file.zip#fragment-here&amp;pk_campaign=Campaign param accepted here', 1);
+    }
+
     public function test_main_shouldReturnEmptyPiwikResponse_IfNoRequestsAreGiven()
     {
         $requestSet = $this->getEmptyRequestSet();
@@ -317,6 +312,53 @@ class TrackerTest extends IntegrationTestCase
                             $identifiedRequests[0]->getParams());
     }
 
+    public function test_main_shouldPostEndEvent()
+    {
+        $called = false;
+        Piwik::addAction('Tracker.end', function () use (&$called) {
+            $called = true;
+        });
+
+        $this->tracker->main(new Handler(), new RequestSet());
+
+        $this->assertTrue($called);
+    }
+
+    public function test_main_shouldPostEndEvent_EvenIfShouldNotRecordStats()
+    {
+        $called = false;
+        Piwik::addAction('Tracker.end', function () use (&$called) {
+            $called = true;
+        });
+
+        $handler = new Handler();
+
+        $this->tracker->disableRecordStatistics();
+        $this->tracker->main($handler, new RequestSet());
+
+        $this->assertFalse($handler->isProcessed);
+        $this->assertTrue($called);
+    }
+
+    public function test_main_shouldPostEndEvent_EvenIfThereIsAnException()
+    {
+        $called = false;
+        Piwik::addAction('Tracker.end', function () use (&$called) {
+            $called = true;
+        });
+
+        $handler = new Handler();
+        $handler->enableTriggerExceptionInProcess();
+
+        $requestSet = new RequestSet();
+        $requestSet->setRequests(array($this->buildRequest(1), $this->buildRequest(1)));
+
+        $this->tracker->main($handler, $requestSet);
+
+        $this->assertTrue($handler->isOnException);
+        $this->assertTrue($called);
+    }
+
     private function getDefaultHandler()
     {
         return new Tracker\Handler();
@@ -375,5 +417,36 @@ class TrackerTest extends IntegrationTestCase
         shell_exec("mv $localConfig $backupConfig");
         return array($localConfig, $backupConfig);
     }
+}
 
+class TestTracker extends Tracker
+{
+    public function __construct()
+    {
+        $this->isInstalled = true;
+        $this->record = true;
+    }
+
+    public function setIsNotInstalled()
+    {
+        $this->isInstalled = false;
+    }
+
+    public function disconnectDatabase()
+    {
+        parent::disconnectDatabase();
+    }
+
+    public function shouldRecordStatistics()
+    {
+        if (! $this->record) {
+            return false;
+        }
+        return parent::shouldRecordStatistics();
+    }
+
+    public function disableRecordStatistics()
+    {
+        $this->record = false;
+    }
 }

@@ -8,6 +8,7 @@
  */
 namespace Piwik;
 
+use Piwik\Container\StaticContainer;
 use Piwik\Plugin\Dependency;
 use Piwik\Plugin\MetadataLoader;
 
@@ -334,7 +335,6 @@ class Plugin
             if (file_exists($componentFile)) {
                 include_once $componentFile;
             }
-
         } else {
             $this->cache->save($cacheId, false); // prevent from trying to load over and over again for instance if there is no Menu for a plugin
 
@@ -359,7 +359,7 @@ class Plugin
             $this->cache->save($cacheId, $classname);
         }
 
-        return new $classname;
+        return StaticContainer::get($classname);
     }
 
     public function findMultipleComponents($directoryWithinPlugin, $expectedSubclass)

@@ -49,16 +49,10 @@ class Controller extends \Piwik\Plugin\Controller
         return 'redirectToCoreHomeIndex';
     }
 
-    public function renderReportMenu($reportModule = null, $reportAction = null)
+    public function renderReportMenu(Report $report)
     {
         Piwik::checkUserHasSomeViewAccess();
         $this->checkSitePermission();
-
-        $report = Report::factory($reportModule, $reportAction);
-
-        if (empty($report)) {
-            throw new Exception($this->translator->translate('General_ExceptionReportNotFound'));
-        }
 
         $report->checkIsEnabled();
 
@@ -69,38 +63,26 @@ class Controller extends \Piwik\Plugin\Controller
         }
 
         $menuTitle = $this->translator->translate($menuTitle);
-        $content   = $this->renderReportWidget($reportModule, $reportAction);
+        $content   = $this->renderReportWidget($report);
 
         return View::singleReport($menuTitle, $content);
     }
 
-    public function renderReportWidget($reportModule = null, $reportAction = null)
+    public function renderReportWidget(Report $report)
     {
         Piwik::checkUserHasSomeViewAccess();
         $this->checkSitePermission();
-
-        $report = Report::factory($reportModule, $reportAction);
-
-        if (empty($report)) {
-            throw new Exception($this->translator->translate('General_ExceptionReportNotFound'));
-        }
 
         $report->checkIsEnabled();
 
         return $report->render();
     }
 
-    public function renderWidget($widgetModule = null, $widgetAction = null)
+    public function renderWidget(PluginWidgets $widget, $method)
     {
         Piwik::checkUserHasSomeViewAccess();
 
-        $widget = PluginWidgets::factory($widgetModule, $widgetAction);
-
-        if (!empty($widget)) {
-            return $widget->$widgetAction();
-        }
-
-        throw new Exception($this->translator->translate('General_ExceptionWidgetNotFound'));
+        return $widget->$method();
     }
 
     function redirectToCoreHomeIndex()
@@ -129,6 +111,9 @@ class Controller extends \Piwik\Plugin\Controller
         $controllerName = Common::getRequestVar('moduleToLoad');
         $actionName     = Common::getRequestVar('actionToLoad', 'index');
 
+        if($controllerName == 'API') {
+            throw new Exception("Showing API requests in context is not supported for security reasons. Please change query parameter 'moduleToLoad'.");
+        }
         if ($actionName == 'showInContext') {
             throw new Exception("Preventing infinite recursion...");
         }

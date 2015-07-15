@@ -33,6 +33,8 @@
  ************************************************************/
 /*jslint evil: true, regexp: false, bitwise: true, white: true */
 /*global JSON2:true */
+/*global window:true */
+/*property JSON:true */
 /*members "", "\b", "\t", "\n", "\f", "\r", "\"", "\\", apply,
     call, charCodeAt, getUTCDate, getUTCFullYear, getUTCHours,
     getUTCMinutes, getUTCMonth, getUTCSeconds, hasOwnProperty, join,
@@ -45,7 +47,7 @@
 // methods in a closure to avoid creating global variables.
 
 if (typeof JSON2 !== 'object') {
-    JSON2 = {};
+    JSON2 = window.JSON || {};
 }
 
 (function () {
@@ -394,7 +396,7 @@ if (typeof JSON2 !== 'object') {
 /*global ActiveXObject */
 /*members encodeURIComponent, decodeURIComponent, getElementsByTagName,
     shift, unshift, piwikAsyncInit,
-    createElement, appendChild, characterSet, charset,
+    createElement, appendChild, characterSet, charset, all,
     addEventListener, attachEvent, removeEventListener, detachEvent, disableCookies,
     cookie, domain, readyState, documentElement, doScroll, title, text,
     location, top, onerror, document, referrer, parent, links, href, protocol, name, GearsFactory,
@@ -406,7 +408,7 @@ if (typeof JSON2 !== 'object') {
     getTime, getTimeAlias, setTime, toGMTString, getHours, getMinutes, getSeconds,
     toLowerCase, toUpperCase, charAt, indexOf, lastIndexOf, split, slice,
     onload, src,
-    round, random,
+    min, round, random,
     exec,
     res, width, height, devicePixelRatio,
     pdf, qt, realp, wma, dir, fla, java, gears, ag,
@@ -416,7 +418,7 @@ if (typeof JSON2 !== 'object') {
     setCustomData, getCustomData,
     setCustomRequestProcessing,
     setCustomVariable, getCustomVariable, deleteCustomVariable, storeCustomVariablesInCookie,
-    setDownloadExtensions, addDownloadExtensions,
+    setDownloadExtensions, addDownloadExtensions, removeDownloadExtensions,
     setDomains, setIgnoreClasses, setRequestMethod, setRequestContentType,
     setReferrerUrl, setCustomUrl, setAPIUrl, setDocumentTitle,
     setDownloadClasses, setLinkClasses,
@@ -428,10 +430,10 @@ if (typeof JSON2 !== 'object') {
     disablePerformanceTracking, setGenerationTimeMs,
     doNotTrack, setDoNotTrack, msDoNotTrack, getValuesFromVisitorIdCookie,
     addListener, enableLinkTracking, enableJSErrorTracking, setLinkTrackingTimer,
-    setHeartBeatTimer, killFrame, redirectFile, setCountPreRendered,
+    enableHeartBeatTimer, disableHeartBeatTimer, killFrame, redirectFile, setCountPreRendered,
     trackGoal, trackLink, trackPageView, trackSiteSearch, trackEvent,
     setEcommerceView, addEcommerceItem, trackEcommerceOrder, trackEcommerceCartUpdate,
-    deleteCookies, offsetTop, offsetLeft, offsetHeight, offsetWidth, nodeType, defaultView,
+    deleteCookie, deleteCookies, offsetTop, offsetLeft, offsetHeight, offsetWidth, nodeType, defaultView,
     innerHTML, scrollLeft, scrollTop, currentStyle, getComputedStyle, querySelectorAll, splice,
     getAttribute, hasAttribute, attributes, nodeName, findContentNodes, findContentNodes, findContentNodesWithinNode,
     findPieceNode, findTargetNodeNoDefault, findTargetNode, findContentPiece, children, hasNodeCssClass,
@@ -797,7 +799,7 @@ if (typeof Piwik !== 'object') {
          * UTF-8 encoding
          */
         function utf8_encode(argString) {
-            return urldecode(encodeWrapper(argString));
+            return unescape(encodeWrapper(argString));
         }
 
         /************************************************************
@@ -2175,7 +2177,7 @@ if (typeof Piwik !== 'object') {
                 configTitle = documentAlias.title,
 
                 // Extensions to be treated as download links
-                configDownloadExtensions = '7z|aac|apk|ar[cj]|as[fx]|avi|azw3|bin|csv|deb|dmg|docx?|epub|exe|flv|gif|gz|gzip|hqx|jar|jpe?g|js|mobi|mp(2|3|4|e?g)|mov(ie)?|ms[ip]|od[bfgpst]|og[gv]|pdf|phps|png|pptx?|qtm?|ra[mr]?|rpm|sea|sit|tar|t?bz2?|tgz|torrent|txt|wav|wm[av]|wpd||xlsx?|xml|z|zip',
+                configDownloadExtensions = ['7z','aac','apk','arc','arj','asf','asx','avi','azw3','bin','csv','deb','dmg','doc','docx','epub','exe','flv','gif','gz','gzip','hqx','ibooks','jar','jpg','jpeg','js','mobi','mp2','mp3','mp4','mpg','mpeg','mov','movie','msi','msp','odb','odf','odg','ods','odt','ogg','ogv','pdf','phps','png','ppt','pptx','qt','qtm','ra','ram','rar','rpm','sea','sit','tar','tbz','tbz2','bz','bz2','tgz','torrent','txt','wav','wma','wmv','wpd','xls','xlsx','xml','z','zip'],
 
                 // Hosts or alias(es) to not treat as outlinks
                 configHostsAlias = [domainAlias],
@@ -2196,7 +2198,10 @@ if (typeof Piwik !== 'object') {
                 configMinimumVisitTime,
 
                 // Recurring heart beat after initial ping (in milliseconds)
-                configHeartBeatTimer,
+                configHeartBeatDelay,
+
+                // alias to circumvent circular function dependency (JSLint requires this)
+                heartBeatPingIfActivityAlias,
 
                 // Disallow hash tags in URL
                 configDiscardHashTag,
@@ -2285,10 +2290,13 @@ if (typeof Piwik !== 'object') {
                 linkTrackingEnabled = false,
 
                 // Guard against installing the activity tracker more than once per Tracker instance
-                activityTrackingInstalled = false,
+                heartBeatSetUp = false,
 
-                // Last activity timestamp
-                lastActivityTime,
+                // Timestamp of last tracker request sent to Piwik
+                lastTrackerRequestTime = null,
+
+                // Handle to the current heart beat timeout
+                heartBeatTimeout,
 
                 // Internal state of the pseudo click handler
                 lastButton,
@@ -2482,10 +2490,80 @@ if (typeof Piwik !== 'object') {
                 }
             }
 
+            /*
+             * Sets up the heart beat timeout.
+             */
+            function heartBeatUp(delay) {
+                if (heartBeatTimeout
+                    || !configHeartBeatDelay
+                ) {
+                    return;
+                }
+
+                heartBeatTimeout = setTimeout(function heartBeat() {
+                    heartBeatTimeout = null;
+                    if (heartBeatPingIfActivityAlias()) {
+                        return;
+                    }
+
+                    var now = new Date(),
+                        heartBeatDelay = configHeartBeatDelay - (now.getTime() - lastTrackerRequestTime);
+                    // sanity check
+                    heartBeatDelay = Math.min(configHeartBeatDelay, heartBeatDelay);
+                    heartBeatUp(heartBeatDelay);
+                }, delay || configHeartBeatDelay);
+            }
+
+            /*
+             * Removes the heart beat timeout.
+             */
+            function heartBeatDown() {
+                if (!heartBeatTimeout) {
+                    return;
+                }
+
+                clearTimeout(heartBeatTimeout);
+                heartBeatTimeout = null;
+            }
+
+            function heartBeatOnFocus() {
+                // since it's possible for a user to come back to a tab after several hours or more, we try to send
+                // a ping if the page is active. (after the ping is sent, the heart beat timeout will be set)
+                if (heartBeatPingIfActivityAlias()) {
+                    return;
+                }
+
+                heartBeatUp();
+            }
+
+            function heartBeatOnBlur() {
+                heartBeatDown();
+            }
+
+            /*
+             * Setup event handlers and timeout for initial heart beat.
+             */
+            function setUpHeartBeat() {
+                if (heartBeatSetUp
+                    || !configHeartBeatDelay
+                ) {
+                    return;
+                }
+
+                heartBeatSetUp = true;
+
+                addEventListener(windowAlias, 'focus', heartBeatOnFocus);
+                addEventListener(windowAlias, 'blur', heartBeatOnBlur);
+
+                heartBeatUp();
+            }
+
             function makeSureThereIsAGapAfterFirstTrackingRequestToPreventMultipleVisitorCreation(callback)
             {
                 var now     = new Date();
                 var timeNow = now.getTime();
+
+                lastTrackerRequestTime = timeNow;
 
                 if (timeNextTrackingRequestCanBeExecutedImmediately && timeNow < timeNextTrackingRequestCanBeExecutedImmediately) {
                     // we are in the time frame shortly after the first request. we have to delay this request a bit to make sure
@@ -2514,7 +2592,6 @@ if (typeof Piwik !== 'object') {
              * Send request
              */
             function sendRequest(request, delay, callback) {
-
                 if (!configDoNotTrack && request) {
                     makeSureThereIsAGapAfterFirstTrackingRequestToPreventMultipleVisitorCreation(function () {
                         if (configRequestMethod === 'POST') {
@@ -2525,6 +2602,12 @@ if (typeof Piwik !== 'object') {
 
                         setExpireDateTime(delay);
                     });
+                }
+
+                if (!heartBeatSetUp) {
+                    setUpHeartBeat(); // setup window events too, but only once
+                } else {
+                    heartBeatUp();
                 }
             }
 
@@ -2616,13 +2699,18 @@ if (typeof Piwik !== 'object') {
             }
 
             /*
-             * Process all "activity" events.
-             * For performance, this function must have low overhead.
+             * Generate a pseudo-unique ID to fingerprint this user
+             * 16 hexits = 64 bits
+             * note: this isn't a RFC4122-compliant UUID
              */
-            function activityHandler() {
-                var now = new Date();
-
-                lastActivityTime = now.getTime();
+            function generateRandomUuid() {
+                return hash(
+                    (navigatorAlias.userAgent || '') +
+                    (navigatorAlias.platform || '') +
+                    JSON2.stringify(browserFeatures) +
+                    (new Date()).getTime() +
+                    Math.random()
+                ).slice(0, 16);
             }
 
             /*
@@ -2636,6 +2724,7 @@ if (typeof Piwik !== 'object') {
                     cookieValue,
                     uuid;
 
+                // Visitor ID cookie found
                 if (id) {
                     cookieValue = id.split('.');
 
@@ -2648,20 +2737,15 @@ if (typeof Piwik !== 'object') {
                     return cookieValue;
                 }
 
-                // uuid - generate a pseudo-unique ID to fingerprint this user;
-                // note: this isn't a RFC4122-compliant UUID
-                if (visitorUUID.length) {
+                if(visitorUUID.length) {
                     uuid = visitorUUID;
+                } else if ('0' === hasCookies()){
+                    uuid = '';
                 } else {
-                    uuid = hash(
-                        (navigatorAlias.userAgent || '') +
-                        (navigatorAlias.platform || '') +
-                        JSON2.stringify(browserFeatures) +
-                        now.getTime() +
-                        Math.random()
-                    ).slice(0, 16); // 16 hexits = 64 bits
+                    uuid = generateRandomUuid();
                 }
 
+                // No visitor ID cookie, let's create a new one
                 cookieValue = [
                     // new visitor
                     '1',
@@ -2734,6 +2818,7 @@ if (typeof Piwik !== 'object') {
              * Sets the Visitor ID cookie
              */
             function setVisitorIdCookie(visitorIdCookieValues) {
+
                 if(!configTrackerSiteId) {
                     // when called before Site ID was set
                     return;
@@ -2790,15 +2875,39 @@ if (typeof Piwik !== 'object') {
                 ];
             }
 
+            function deleteCookie(cookieName, path, domain) {
+                setCookie(cookieName, '', -86400, path, domain);
+            }
+
+            function isPossibleToSetCookieOnDomain(domainToTest)
+            {
+                var valueToSet = 'testvalue';
+                setCookie('test', valueToSet, 10000, null, domainToTest);
+
+                if (getCookie('test') === valueToSet) {
+                    deleteCookie('test', null, domainToTest);
+
+                    return true;
+                }
+
+                return false;
+            }
+
             function deleteCookies() {
                 var savedConfigCookiesDisabled = configCookiesDisabled;
 
                 // Temporarily allow cookies just to delete the existing ones
                 configCookiesDisabled = false;
-                setCookie(getCookieName('id'), '', -86400, configCookiePath, configCookieDomain);
-                setCookie(getCookieName('ses'), '', -86400, configCookiePath, configCookieDomain);
-                setCookie(getCookieName('cvar'), '', -86400, configCookiePath, configCookieDomain);
-                setCookie(getCookieName('ref'), '', -86400, configCookiePath, configCookieDomain);
+
+                var cookiesToDelete = ['id', 'ses', 'cvar', 'ref'];
+                var index, cookieName;
+
+                for (index = 0; index < cookiesToDelete.length; index++) {
+                    cookieName = getCookieName(cookiesToDelete[index]);
+                    if (0 !== getCookie(cookieName)) {
+                        deleteCookie(cookieName, configCookiePath, configCookieDomain);
+                    }
+                }
 
                 configCookiesDisabled = savedConfigCookiesDisabled;
             }
@@ -3057,6 +3166,22 @@ if (typeof Piwik !== 'object') {
                 return request;
             }
 
+            /*
+             * If there was user activity since the last check, and it's been configHeartBeatDelay seconds
+             * since the last tracker, send a ping request (the heartbeat timeout will be reset by sendRequest).
+             */
+            heartBeatPingIfActivityAlias = function heartBeatPingIfActivity() {
+                var now = new Date();
+                if (lastTrackerRequestTime + configHeartBeatDelay <= now.getTime()) {
+                    var requestPing = getRequest('ping=1', null, 'ping');
+                    sendRequest(requestPing, configTrackerPause);
+
+                    return true;
+                }
+
+                return false;
+            };
+
             function logEcommerce(orderId, grandTotal, subTotal, tax, shipping, discount) {
                 var request = 'idgoal=0',
                     lastEcommerceOrderTs,
@@ -3143,49 +3268,6 @@ if (typeof Piwik !== 'object') {
                     request = getRequest('action_name=' + encodeWrapper(titleFixup(customTitle || configTitle)), customData, 'log');
 
                 sendRequest(request, configTrackerPause);
-
-                // send ping
-                if (configMinimumVisitTime && configHeartBeatTimer && !activityTrackingInstalled) {
-                    activityTrackingInstalled = true;
-
-                    // add event handlers; cross-browser compatibility here varies significantly
-                    // @see http://quirksmode.org/dom/events
-                    addEventListener(documentAlias, 'click', activityHandler);
-                    addEventListener(documentAlias, 'mouseup', activityHandler);
-                    addEventListener(documentAlias, 'mousedown', activityHandler);
-                    addEventListener(documentAlias, 'mousemove', activityHandler);
-                    addEventListener(documentAlias, 'mousewheel', activityHandler);
-                    addEventListener(windowAlias, 'DOMMouseScroll', activityHandler);
-                    addEventListener(windowAlias, 'scroll', activityHandler);
-                    addEventListener(documentAlias, 'keypress', activityHandler);
-                    addEventListener(documentAlias, 'keydown', activityHandler);
-                    addEventListener(documentAlias, 'keyup', activityHandler);
-                    addEventListener(windowAlias, 'resize', activityHandler);
-                    addEventListener(windowAlias, 'focus', activityHandler);
-                    addEventListener(windowAlias, 'blur', activityHandler);
-
-                    // periodic check for activity
-                    lastActivityTime = now.getTime();
-                    setTimeout(function heartBeat() {
-                        var requestPing;
-                        now = new Date();
-
-                        // there was activity during the heart beat period;
-                        // on average, this is going to overstate the visitDuration by configHeartBeatTimer/2
-                        if ((lastActivityTime + configHeartBeatTimer) > now.getTime()) {
-                            // send ping if minimum visit time has elapsed
-                            if (configMinimumVisitTime < now.getTime()) {
-                                requestPing = getRequest('ping=1', customData, 'ping');
-
-                                sendRequest(requestPing, configTrackerPause);
-                            }
-
-                            // resume heart beat
-                            setTimeout(heartBeat, configHeartBeatTimer);
-                        }
-                        // else heart beat cancelled due to inactivity
-                    }, configHeartBeatTimer);
-                }
             }
 
             /*
@@ -3213,7 +3295,7 @@ if (typeof Piwik !== 'object') {
             /*
              * Link or Download?
              */
-            function getLinkType(className, href, isInLink) {
+            function getLinkType(className, href, isInLink, hasDownloadAttribute) {
                 if (startsUrlWithTrackerUrl(href)) {
                     return 0;
                 }
@@ -3223,13 +3305,13 @@ if (typeof Piwik !== 'object') {
                     linkPattern = getClassesRegExp(configLinkClasses, 'link'),
 
                 // does file extension indicate that it is a download?
-                    downloadExtensionsPattern = new RegExp('\\.(' + configDownloadExtensions + ')([?&#]|$)', 'i');
+                    downloadExtensionsPattern = new RegExp('\\.(' + configDownloadExtensions.join('|') + ')([?&#]|$)', 'i');
 
                 if (linkPattern.test(className)) {
                     return 'link';
                 }
 
-                if (downloadPattern.test(className) || downloadExtensionsPattern.test(href)) {
+                if (hasDownloadAttribute || downloadPattern.test(className) || downloadExtensionsPattern.test(href)) {
                     return 'download';
                 }
 
@@ -3287,7 +3369,7 @@ if (typeof Piwik !== 'object') {
 
                 if (!scriptProtocol.test(sourceHref)) {
                     // track outlinks and all downloads
-                    var linkType = getLinkType(sourceElement.className, sourceHref, isSiteHostName(sourceHostName));
+                    var linkType = getLinkType(sourceElement.className, sourceHref, isSiteHostName(sourceHostName), query.hasNodeAttribute(sourceElement, 'download'));
 
                     if (linkType) {
                         return {
@@ -3826,53 +3908,139 @@ if (typeof Piwik !== 'object') {
                 var link = getLinkIfShouldBeProcessed(sourceElement);
 
                 if (link && link.type) {
-                    // urldecode %xx
-                    link.href = urldecode(link.href);
+                    link.href = decodeWrapper(link.href);
                     logLink(link.href, link.type, undefined, null, sourceElement);
                 }
+            }
+
+            function isIE8orOlder()
+            {
+                return documentAlias.all && !documentAlias.addEventListener;
+            }
+
+            function getKeyCodeFromEvent(event)
+            {
+                // event.which is deprecated https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/which
+                var which = event.which;
+
+                /**
+                 1 : Left mouse button
+                 2 : Wheel button or middle button
+                 3 : Right mouse button
+                 */
+
+                var typeOfEventButton = (typeof event.button);
+
+                if (!which && typeOfEventButton !== 'undefined' ) {
+                    /**
+                     -1: No button pressed
+                     0 : Main button pressed, usually the left button
+                     1 : Auxiliary button pressed, usually the wheel button or themiddle button (if present)
+                     2 : Secondary button pressed, usually the right button
+                     3 : Fourth button, typically the Browser Back button
+                     4 : Fifth button, typically the Browser Forward button
+
+                     IE8 and earlier has different values:
+                     1 : Left mouse button
+                     2 : Right mouse button
+                     4 : Wheel button or middle button
+
+                     For a left-hand configured mouse, the return values are reversed. We do not take care of that.
+                     */
+
+                    if (isIE8orOlder()) {
+                        if (event.button & 1) {
+                            which = 1;
+                        } else if (event.button & 2) {
+                            which = 3;
+                        } else if (event.button & 4) {
+                            which = 2;
+                        }
+                    } else {
+                        if (event.button === 0 || event.button === '0') {
+                            which = 1;
+                        } else if (event.button & 1) {
+                            which = 2;
+                        } else if (event.button & 2) {
+                            which = 3;
+                        }
+                    }
+                }
+
+                return which;
+            }
+
+            function getNameOfClickedButton(event)
+            {
+                switch (getKeyCodeFromEvent(event)) {
+                    case 1:
+                        return 'left';
+                    case 2:
+                        return 'middle';
+                    case 3:
+                        return 'right';
+                }
+            }
+
+            function getTargetElementFromEvent(event)
+            {
+                return event.target || event.srcElement;
             }
 
             /*
              * Handle click event
              */
-            function clickHandler(evt) {
-                var button,
-                    target;
+            function clickHandler(enable) {
 
-                evt = evt || windowAlias.event;
-                button = evt.which || evt.button;
-                target = evt.target || evt.srcElement;
+                return function (event) {
 
-                // Using evt.type (added in IE4), we avoid defining separate handlers for mouseup and mousedown.
-                if (evt.type === 'click') {
-                    if (target) {
-                        processClick(target);
-                    }
-                } else if (evt.type === 'mousedown') {
-                    if ((button === 1 || button === 2) && target) {
-                        lastButton = button;
-                        lastTarget = target;
-                    } else {
+                    event = event || windowAlias.event;
+
+                    var button = getNameOfClickedButton(event);
+                    var target = getTargetElementFromEvent(event);
+
+                    if (event.type === 'click') {
+
+                        var ignoreClick = false;
+                        if (enable && button === 'middle') {
+                            // if enabled, we track middle clicks via mouseup
+                            // some browsers (eg chrome) trigger click and mousedown/up events when middle is clicked,
+                            // whereas some do not. This way we make "sure" to track them only once, either in click
+                            // (default) or in mouseup (if enable == true)
+                            ignoreClick = true;
+                        }
+
+                        if (target && !ignoreClick) {
+                            processClick(target);
+                        }
+                    } else if (event.type === 'mousedown') {
+                        if (button === 'middle' && target) {
+                            lastButton = button;
+                            lastTarget = target;
+                        } else {
+                            lastButton = lastTarget = null;
+                        }
+                    } else if (event.type === 'mouseup') {
+                        if (button === lastButton && target === lastTarget) {
+                            processClick(target);
+                        }
                         lastButton = lastTarget = null;
-                    }
-                } else if (evt.type === 'mouseup') {
-                    if (button === lastButton && target === lastTarget) {
+                    } else if (event.type === 'contextmenu') {
                         processClick(target);
                     }
-                    lastButton = lastTarget = null;
-                }
+                };
             }
 
             /*
              * Add click listener to a DOM element
              */
             function addClickListener(element, enable) {
+                addEventListener(element, 'click', clickHandler(enable), false);
+
                 if (enable) {
-                    // for simplicity and performance, we ignore drag events
-                    addEventListener(element, 'mouseup', clickHandler, false);
-                    addEventListener(element, 'mousedown', clickHandler, false);
-                } else {
-                    addEventListener(element, 'click', clickHandler, false);
+                    addEventListener(element, 'mouseup', clickHandler(enable), false);
+                    addEventListener(element, 'mousedown', clickHandler(enable), false);
+                    addEventListener(element, 'contextmenu', clickHandler(enable), false);
                 }
             }
 
@@ -3991,8 +4159,9 @@ if (typeof Piwik !== 'object') {
                         gears: 'application/x-googlegears',
                         ag: 'application/x-silverlight'
                     },
-                    devicePixelRatio = (new RegExp('Mac OS X.*Safari/')).test(navigatorAlias.userAgent) ? windowAlias.devicePixelRatio || 1 : 1;
+                    devicePixelRatio = windowAlias.devicePixelRatio || 1;
 
+                // detect browser features except IE < 11 (IE 11 user agent is no longer MSIE)
                 if (!((new RegExp('MSIE')).test(navigatorAlias.userAgent))) {
                     // general plugin detection
                     if (navigatorAlias.mimeTypes && navigatorAlias.mimeTypes.length) {
@@ -4022,8 +4191,6 @@ if (typeof Piwik !== 'object') {
                 }
 
                 // screen resolution
-                // - only Apple reports screen.* in device-independent-pixels (dips)
-                // - devicePixelRatio is always 2 on MacOSX+Retina regardless of resolution set in Display Preferences
                 browserFeatures.res = screenAlias.width * devicePixelRatio + 'x' + screenAlias.height * devicePixelRatio;
             }
 
@@ -4133,7 +4300,7 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Get visitor ID (from first party cookie)
                  *
-                 * @return string Visitor ID in hexits (or null, if not yet known)
+                 * @return string Visitor ID in hexits (or empty string, if not yet known)
                  */
                 getVisitorId: function () {
                     return getValuesFromVisitorIdCookie().uuid;
@@ -4245,6 +4412,9 @@ if (typeof Piwik !== 'object') {
                  * @param string User ID
                  */
                 setUserId: function (userId) {
+                    if(!isDefined(userId) || !userId.length) {
+                        return;
+                    }
                     configUserId = userId;
                     visitorUUID = hash(configUserId).substr(0, 16);
                 },
@@ -4344,7 +4514,7 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Set custom variable within this visit
                  *
-                 * @param int index
+                 * @param int index Custom variable slot ID from 1-5
                  * @param string name
                  * @param string value
                  * @param string scope Scope of Custom Variable:
@@ -4383,7 +4553,7 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Get custom variable
                  *
-                 * @param int index
+                 * @param int index Custom variable slot ID from 1-5
                  * @param string scope Scope of Custom Variable: "visit" or "page" or "event"
                  */
                 getCustomVariable: function (index, scope) {
@@ -4413,7 +4583,7 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Delete custom variable
                  *
-                 * @param int index
+                 * @param int index Custom variable slot ID from 1-5
                  */
                 deleteCustomVariable: function (index, scope) {
                     // Only delete if it was there already
@@ -4444,19 +4614,46 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Set list of file extensions to be recognized as downloads
                  *
-                 * @param string extensions
+                 * @param string|array extensions
                  */
                 setDownloadExtensions: function (extensions) {
+                    if(isString(extensions)) {
+                        extensions = extensions.split('|');
+                    }
                     configDownloadExtensions = extensions;
                 },
 
                 /**
                  * Specify additional file extensions to be recognized as downloads
                  *
-                 * @param string extensions
+                 * @param string|array extensions  for example 'custom' or ['custom1','custom2','custom3']
                  */
                 addDownloadExtensions: function (extensions) {
-                    configDownloadExtensions += '|' + extensions;
+                    var i;
+                    if(isString(extensions)) {
+                        extensions = extensions.split('|');
+                    }
+                    for (i=0; i < extensions.length; i++) {
+                        configDownloadExtensions.push(extensions[i]);
+                    }
+                },
+
+                /**
+                 * Removes specified file extensions from the list of recognized downloads
+                 *
+                 * @param string|array extensions  for example 'custom' or ['custom1','custom2','custom3']
+                 */
+                removeDownloadExtensions: function (extensions) {
+                    var i, newExtensions = [];
+                    if(isString(extensions)) {
+                        extensions = extensions.split('|');
+                    }
+                    for (i=0; i < configDownloadExtensions.length; i++) {
+                        if (indexOfArray(extensions, configDownloadExtensions[i]) === -1) {
+                            newExtensions.push(configDownloadExtensions[i]);
+                        }
+                    }
+                    configDownloadExtensions = newExtensions;
                 },
 
                 /**
@@ -4601,8 +4798,12 @@ if (typeof Piwik !== 'object') {
                  * @param string domain
                  */
                 setCookieDomain: function (domain) {
-                    configCookieDomain = domainFixup(domain);
-                    updateDomainHash();
+                    var domainFixed = domainFixup(domain);
+
+                    if (isPossibleToSetCookieOnDomain(domainFixed)) {
+                        configCookieDomain = domainFixed;
+                        updateDomainHash();
+                    }
                 },
 
                 /**
@@ -4663,6 +4864,10 @@ if (typeof Piwik !== 'object') {
                 disableCookies: function () {
                     configCookiesDisabled = true;
                     browserFeatures.cookie = '0';
+
+                    if (configTrackerSiteId) {
+                        deleteCookies();
+                    }
                 },
 
                 /**
@@ -4693,7 +4898,7 @@ if (typeof Piwik !== 'object') {
                  * When clicked, Piwik will log the click automatically.
                  *
                  * @param DOMElement element
-                 * @param bool enable If true, use pseudo click-handler (mousedown+mouseup)
+                 * @param bool enable If true, use pseudo click-handler (middle click + context menu)
                  */
                 addListener: function (element, enable) {
                     addClickListener(element, enable);
@@ -4714,7 +4919,13 @@ if (typeof Piwik !== 'object') {
                  *
                  * @see https://bugs.webkit.org/show_bug.cgi?id=54783
                  *
-                 * @param bool enable If true, use pseudo click-handler (mousedown+mouseup)
+                 * @param bool enable If "true", use pseudo click-handler (treat middle click and open contextmenu as
+                 *                    left click). A right click (or any click that opens the context menu) on a link
+                 *                    will be tracked as clicked even if "Open in new tab" is not selected. If
+                 *                    "false" (default), nothing will be tracked on open context menu or middle click.
+                 *                    The context menu is usually opened to open a link / download in a new tab
+                 *                    therefore you can get more accurate results by treat it as a click but it can lead
+                 *                    to wrong click numbers.
                  */
                 enableLinkTracking: function (enable) {
                     linkTrackingEnabled = true;
@@ -4795,15 +5006,30 @@ if (typeof Piwik !== 'object') {
                 /**
                  * Set heartbeat (in seconds)
                  *
-                 * @param int minimumVisitLength
-                 * @param int heartBeatDelay
+                 * @param int heartBeatDelayInSeconds Defaults to 15. Cannot be lower than 1.
                  */
-                setHeartBeatTimer: function (minimumVisitLength, heartBeatDelay) {
-                    var now = new Date();
+                enableHeartBeatTimer: function (heartBeatDelayInSeconds) {
+                    heartBeatDelayInSeconds = Math.max(heartBeatDelayInSeconds, 1);
+                    configHeartBeatDelay = (heartBeatDelayInSeconds || 15) * 1000;
 
-                    configMinimumVisitTime = now.getTime() + minimumVisitLength * 1000;
-                    configHeartBeatTimer = heartBeatDelay * 1000;
+                    // if a tracking request has already been sent, start the heart beat timeout
+                    if (lastTrackerRequestTime !== null) {
+                        setUpHeartBeat();
+                    }
                 },
+
+/*<DEBUG>*/
+                /**
+                 * Clear heartbeat.
+                 */
+                disableHeartBeatTimer: function () {
+                    heartBeatDown();
+                    configHeartBeatDelay = null;
+
+                    window.removeEventListener('focus', heartBeatOnFocus);
+                    window.removeEventListener('blur', heartBeatOnBlur);
+                },
+/*</DEBUG>*/
 
                 /**
                  * Frame buster
@@ -5211,6 +5437,46 @@ if (typeof Piwik !== 'object') {
             };
         }
 
+        /**
+         * Applies the given methods in the given order if they are present in paq.
+         *
+         * @param {Array} paq
+         * @param {Array} methodsToApply an array containing method names in the order that they should be applied
+         *                 eg ['setSiteId', 'setTrackerUrl']
+         * @returns {Array} the modified paq array with the methods that were already applied set to undefined
+         */
+        function applyMethodsInOrder(paq, methodsToApply)
+        {
+            var appliedMethods = {};
+            var index, iterator;
+
+            for (index = 0; index < methodsToApply.length; index++) {
+                var methodNameToApply = methodsToApply[index];
+                appliedMethods[methodNameToApply] = 1;
+
+                for (iterator = 0; iterator < paq.length; iterator++) {
+                    if (paq[iterator] && paq[iterator][0]) {
+                        var methodName = paq[iterator][0];
+
+                        if (methodNameToApply === methodName) {
+                            apply(paq[iterator]);
+                            delete paq[iterator];
+
+                            if (appliedMethods[methodName] > 1) {
+                                if (console !== undefined && console && console.error) {
+                                    console.error('The method ' + methodName + ' is registered more than once in "paq" variable. Only the last call has an effect. Please have a look at the multiple Piwik trackers documentation: http://developer.piwik.org/guides/tracking-javascript-guide#multiple-piwik-trackers');
+                                }
+                            }
+
+                            appliedMethods[methodName]++;
+                        }
+                    }
+                }
+            }
+
+            return paq;
+        }
+
         /************************************************************
          * Constructor
          ************************************************************/
@@ -5223,26 +5489,8 @@ if (typeof Piwik !== 'object') {
 
         asyncTracker = new Tracker();
 
-        var applyFirst = {setTrackerUrl: 1, setAPIUrl: 1, setUserId: 1, setSiteId: 1, disableCookies: 1, enableLinkTracking: 1};
-        var methodName;
-
-        // find the call to setTrackerUrl or setSiteid (if any) and call them first
-        for (iterator = 0; iterator < _paq.length; iterator++) {
-            methodName = _paq[iterator][0];
-
-            if (applyFirst[methodName]) {
-                apply(_paq[iterator]);
-                delete _paq[iterator];
-
-                if (applyFirst[methodName] > 1) {
-                    if (console !== undefined && console && console.error) {
-                        console.error('The method ' + methodName + ' is registered more than once in "_paq" variable. Only the last call has an effect. Please have a look at the multiple Piwik trackers documentation: http://developer.piwik.org/guides/tracking-javascript-guide#multiple-piwik-trackers');
-                    }
-                }
-
-                applyFirst[methodName]++;
-            }
-        }
+        var applyFirst  = ['disableCookies', 'setTrackerUrl', 'setAPIUrl', 'setCookiePath', 'setCookieDomain', 'setUserId', 'setSiteId', 'enableLinkTracking'];
+        _paq = applyMethodsInOrder(_paq, applyFirst);
 
         // apply the queue of actions
         for (iterator = 0; iterator < _paq.length; iterator++) {

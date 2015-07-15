@@ -22,7 +22,7 @@ class Http
     /**
      * Returns the "best" available transport method for {@link sendHttpRequest()} calls.
      *
-     * @return string Either `'curl'`, `'fopen'` or `'socket'`.
+     * @return string|null Either curl, fopen, socket or null if no method is supported.
      * @api
      */
     public static function getTransportMethod()
@@ -64,6 +64,9 @@ class Http
      *                              Doesn't work w/ `fopen` transport method.
      * @param bool $getExtendedInfo If true returns the status code, headers & response, if false just the response.
      * @param string $httpMethod The HTTP method to use. Defaults to `'GET'`.
+     * @param string $httpUsername HTTP Auth username
+     * @param string $httpPassword HTTP Auth password
+     *
      * @throws Exception if the response cannot be saved to `$destinationPath`, if the HTTP response cannot be sent,
      *                   if there are more than 5 redirects or if the request times out.
      * @return bool|string If `$destinationPath` is not specified the HTTP response is returned on success. `false`
@@ -78,7 +81,17 @@ class Http
      *                     `false` is still returned on failure.
      * @api
      */
-    public static function sendHttpRequest($aUrl, $timeout, $userAgent = null, $destinationPath = null, $followDepth = 0, $acceptLanguage = false, $byteRange = false, $getExtendedInfo = false, $httpMethod = 'GET')
+    public static function sendHttpRequest($aUrl,
+                                           $timeout,
+                                           $userAgent = null,
+                                           $destinationPath = null,
+                                           $followDepth = 0,
+                                           $acceptLanguage = false,
+                                           $byteRange = false,
+                                           $getExtendedInfo = false,
+                                           $httpMethod = 'GET',
+                                           $httpUsername = null,
+                                           $httpPassword = null)
     {
         // create output file
         $file = null;
@@ -91,7 +104,7 @@ class Http
         }
 
         $acceptLanguage = $acceptLanguage ? 'Accept-Language: ' . $acceptLanguage : '';
-        return self::sendHttpRequestBy(self::getTransportMethod(), $aUrl, $timeout, $userAgent, $destinationPath, $file, $followDepth, $acceptLanguage, $acceptInvalidSslCertificate = false, $byteRange, $getExtendedInfo, $httpMethod);
+        return self::sendHttpRequestBy(self::getTransportMethod(), $aUrl, $timeout, $userAgent, $destinationPath, $file, $followDepth, $acceptLanguage, $acceptInvalidSslCertificate = false, $byteRange, $getExtendedInfo, $httpMethod, $httpUsername, $httpPassword);
     }
 
     /**
@@ -110,6 +123,8 @@ class Http
      *                                                  Doesn't work w/ fopen method.
      * @param bool $getExtendedInfo True to return status code, headers & response, false if just response.
      * @param string $httpMethod The HTTP method to use. Defaults to `'GET'`.
+     * @param string $httpUsername HTTP Auth username
+     * @param string $httpPassword HTTP Auth password
      *
      * @throws Exception
      * @return bool  true (or string/array) on success; false on HTTP response error code (1xx or 4xx)
@@ -126,9 +141,10 @@ class Http
         $acceptInvalidSslCertificate = false,
         $byteRange = false,
         $getExtendedInfo = false,
-        $httpMethod = 'GET'
-    )
-    {
+        $httpMethod = 'GET',
+        $httpUsername = null,
+        $httpPassword = null
+    ) {
         if ($followDepth > 5) {
             throw new Exception('Too many redirects (' . $followDepth . ')');
         }
@@ -156,17 +172,16 @@ class Http
             $rangeHeader = 'Range: bytes=' . $byteRange[0] . '-' . $byteRange[1] . "\r\n";
         }
 
-        // proxy configuration
-        $proxyHost = Config::getInstance()->proxy['host'];
-        $proxyPort = Config::getInstance()->proxy['port'];
-        $proxyUser = Config::getInstance()->proxy['username'];
-        $proxyPassword = Config::getInstance()->proxy['password'];
+        list($proxyHost, $proxyPort, $proxyUser, $proxyPassword) = self::getProxyConfiguration($aUrl);
+
 
         $aUrl = trim($aUrl);
 
         // other result data
         $status  = null;
         $headers = array();
+
+        $httpAuthIsUsed = !empty($httpUsername) || !empty($httpPassword);
 
         if ($method == 'socket') {
             if (!self::isSocketEnabled()) {
@@ -179,7 +194,7 @@ class Http
                 throw new Exception('Malformed URL: ' . $aUrl);
             }
 
-            if ($url['scheme'] != 'http') {
+            if ($url['scheme'] != 'http' && $url['scheme'] != 'https') {
                 throw new Exception('Invalid protocol/scheme: ' . $url['scheme']);
             }
             $host = $url['host'];
@@ -221,9 +236,15 @@ class Http
                 throw new Exception("Error while connecting to: $host. Please try again later. $errstr");
             }
 
+            $httpAuth = '';
+            if ($httpAuthIsUsed) {
+                $httpAuth = 'Authorization: Basic ' . base64_encode($httpUsername.':'.$httpPassword) . "\r\n";
+            }
+
             // send HTTP request header
             $requestHeader .=
                 "Host: $host" . ($port != 80 ? ':' . $port : '') . "\r\n"
+                . ($httpAuth ? $httpAuth : '')
                 . ($proxyAuth ? $proxyAuth : '')
                 . 'User-Agent: ' . $userAgent . "\r\n"
                 . ($acceptLanguage ? $acceptLanguage . "\r\n" : '')
@@ -315,7 +336,9 @@ class Http
                         $acceptInvalidSslCertificate = false,
                         $byteRange,
                         $getExtendedInfo,
-                        $httpMethod
+                        $httpMethod,
+                        $httpUsername,
+                        $httpPassword
                     );
                 }
 
@@ -361,7 +384,7 @@ class Http
 
             // determine success or failure
             @fclose(@$fsock);
-        } else if ($method == 'fopen') {
+        } elseif ($method == 'fopen') {
             $response = false;
 
             // we make sure the request takes less than a few seconds to fail
@@ -370,11 +393,17 @@ class Http
             $default_socket_timeout = @ini_get('default_socket_timeout');
             @ini_set('default_socket_timeout', $timeout);
 
+            $httpAuth = '';
+            if ($httpAuthIsUsed) {
+                $httpAuth = 'Authorization: Basic ' . base64_encode($httpUsername.':'.$httpPassword) . "\r\n";
+            }
+
             $ctx = null;
             if (function_exists('stream_context_create')) {
                 $stream_options = array(
                     'http' => array(
                         'header'        => 'User-Agent: ' . $userAgent . "\r\n"
+                            . ($httpAuth ? $httpAuth : '')
                             . ($acceptLanguage ? $acceptLanguage . "\r\n" : '')
                             . $xff . "\r\n"
                             . $via . "\r\n"
@@ -405,7 +434,17 @@ class Http
                 }
                 fclose($handle);
             } else {
-                $response = file_get_contents($aUrl, 0, $ctx);
+                $response = @file_get_contents($aUrl, 0, $ctx);
+
+                // try to get http status code from response headers
+                if (isset($http_response_header) && preg_match('~^HTTP/(\d\.\d)\s+(\d+)(\s*.*)?~', implode("\n", $http_response_header), $m)) {
+                    $status = (int)$m[2];
+                }
+
+                if (!$status && $response === false) {
+                    $error = error_get_last();
+                    throw new \Exception($error['message']);
+                }
                 $fileLength = strlen($response);
             }
 
@@ -413,7 +452,7 @@ class Http
             if (!empty($default_socket_timeout)) {
                 @ini_set('default_socket_timeout', $default_socket_timeout);
             }
-        } else if ($method == 'curl') {
+        } elseif ($method == 'curl') {
             if (!self::isCurlEnabled()) {
                 // can be triggered in tests
                 throw new Exception("CURL is not enabled in php.ini, but is being used.");
@@ -458,6 +497,12 @@ class Http
                 @curl_setopt($ch, CURLOPT_NOBODY, true);
             }
 
+            if (!empty($httpUsername) && !empty($httpPassword)) {
+                $curl_options += array(
+                    CURLOPT_USERPWD => $httpUsername . ':' . $httpPassword,
+                );
+            }
+
             @curl_setopt_array($ch, $curl_options);
             self::configCurlCertificate($ch);
 
@@ -488,7 +533,7 @@ class Http
 
             if ($response === true) {
                 $response = '';
-            } else if ($response === false) {
+            } elseif ($response === false) {
                 $errstr = curl_error($ch);
                 if ($errstr != '') {
                     throw new Exception('curl_exec: ' . $errstr
@@ -500,7 +545,14 @@ class Http
                 // redirects are included in the output html, so we look for the last line that starts w/ HTTP/...
                 // to split the response
                 while (substr($response, 0, 5) == "HTTP/") {
-                    list($header, $response) = explode("\r\n\r\n", $response, 2);
+                    $split = explode("\r\n\r\n", $response, 2);
+
+                    if(count($split) == 2) {
+                        list($header, $response) = $split;
+                    } else {
+                        $response = '';
+                        $header = $split;
+                    }
                 }
 
                 foreach (explode("\r\n", $header) as $line) {
@@ -774,5 +826,29 @@ class Http
             }
         }
         return $modifiedSince;
+    }
+
+    /**
+     * Returns Proxy to use for connecting via HTTP to given URL
+     *
+     * @param string $url
+     * @return array
+     */
+    private static function getProxyConfiguration($url)
+    {
+        $hostname = UrlHelper::getHostFromUrl($url);
+        $localHostnames = Url::getLocalHostnames();
+
+        if(in_array($hostname, $localHostnames)) {
+            return array(null, null, null, null);
+        }
+
+        // proxy configuration
+        $proxyHost = Config::getInstance()->proxy['host'];
+        $proxyPort = Config::getInstance()->proxy['port'];
+        $proxyUser = Config::getInstance()->proxy['username'];
+        $proxyPassword = Config::getInstance()->proxy['password'];
+
+        return array($proxyHost, $proxyPort, $proxyUser, $proxyPassword);
     }
 }

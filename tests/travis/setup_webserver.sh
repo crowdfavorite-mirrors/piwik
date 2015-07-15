@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ "$SKIP_PIWIK_TEST_PREPARE" == "1" ]; then
+    echo "Skipping webserver setup."
+    exit 0;
+fi
+
 set -e
 
 DIR=$(dirname "$0")
@@ -43,6 +48,7 @@ touch "$PHP_FPM_LOG"
 sed -i "s/@USER@/$USER/g" "$DIR/php-fpm.ini"
 sed -i "s|@PHP_FPM_SOCK@|$PHP_FPM_SOCK|g" "$DIR/php-fpm.ini"
 sed -i "s|@PHP_FPM_LOG@|$PHP_FPM_LOG|g" "$DIR/php-fpm.ini"
+sed -i "s|@PATH@|$PATH|g" "$DIR/php-fpm.ini"
 
 # Setup nginx
 echo "Configuring nginx"

@@ -97,7 +97,7 @@ class LanguagesManagerTest extends \PHPUnit_Framework_TestCase
             $translationWriter->saveTemporary();
             $this->markTestSkipped(implode("\n", $translationWriter->getFilterMessages()) . "\n"
                 . 'Translation file errors detected in ' . $language . "...\n"
-                . "To synchronise the language files with the english strings, you can manually edit the language files or run the following command may work if you have access to oTrance: \n"
+                . "To synchronise the language files with the english strings, you can manually edit the language files or run the following command may work if you have access to Transifex: \n"
                 . "$ ./console translations:update [--plugin=XYZ] \n"
             );
         }
@@ -139,9 +139,9 @@ class LanguagesManagerTest extends \PHPUnit_Framework_TestCase
         $languagesReference = $dataProvider->getLanguageList();
 
         foreach ($languages as $language) {
-            $data = file_get_contents(PIWIK_INCLUDE_PATH . "/lang/$language.json");
+            $data = file_get_contents(PIWIK_INCLUDE_PATH . "/plugins/Intl/lang/$language.json");
             $translations = json_decode($data, true);
-            $name = $translations['General']['EnglishLanguageName'];
+            $name = $translations['Intl']['EnglishLanguageName'];
 
             if ($language != 'en') {
                 $this->assertFalse($name == 'English', "for $language");

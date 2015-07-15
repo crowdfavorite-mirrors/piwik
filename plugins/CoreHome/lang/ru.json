@@ -3,7 +3,6 @@
         "CategoryNoData": "Нет данных в этой категории. Попробуйте \"Включить все показатели\".",
         "CheckForUpdates": "Проверить на обновления",
         "CheckPiwikOut": "Проверить Piwik на обновления!",
-        "ClickRowToExpandOrContract": "Нажмите на эту строку, чтобы растянуть или сжать подтаблицу.",
         "ClickToEditX": "Редактировать %s",
         "CloseWidgetDirections": "Вы можете закрыть этот виджет, нажав на значок 'X' в верхней части виджета.",
         "DataForThisReportHasBeenPurged": "Данные для этого отчета хранятся более %s месяцев и были почищены.",
@@ -34,15 +33,7 @@
         "NoPrivilegesAskPiwikAdmin": "Вы авторизованы как '%s', но, кажется, для вас не установлены права в Piwik. %s Попросите вашего администратора (кликните, чтобы написать письмо)%s дать вам доступ на \"просмотр\" к статистике сайта.",
         "OnlyForSuperUserAccess": "Этот виджет отображается только у суперпользователя.",
         "PageOf": "%1$s из %2$s",
-        "PeriodDay": "День",
-        "PeriodDays": "дней",
-        "PeriodMonth": "Месяц",
-        "PeriodMonths": "месяцев",
         "PeriodRange": "Период",
-        "PeriodWeek": "Неделю",
-        "PeriodWeeks": "недель",
-        "PeriodYear": "Год",
-        "PeriodYears": "лет",
         "ReportGeneratedOn": "Отчет был составлен %s",
         "ReportGeneratedXAgo": "Отчет был составлен %s назад",
         "SharePiwikLong": "Привет! Я только что нашел интересный проект с открытым исходным кодом: Piwik! Piwik позволит вам отслеживать посетителей на вашем сайте бесплатно. Вы определенно должны это посмотреть!",
@@ -61,6 +52,7 @@
         "UnFlattenDataTable": "Отчет более конкретный %s Построить его по иерархии",
         "ViewAllPiwikVideoTutorials": "Просмотреть все обучающие ролики про Piwik",
         "WebAnalyticsReports": "Отчеты веб аналитики",
-        "YouAreUsingTheLatestVersion": "У вас последняя версия Piwik!"
+        "YouAreUsingTheLatestVersion": "У вас последняя версия Piwik!",
+        "ClickRowToExpandOrContract": "Нажмите на эту строку, чтобы растянуть или сжать подтаблицу."
     }
 }

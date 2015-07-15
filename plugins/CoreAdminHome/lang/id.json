@@ -2,7 +2,6 @@
     "CoreAdminHome": {
         "Administration": "Administrasi",
         "BrandingSettings": "Pengaturan merek",
-        "CheckReleaseGetVersion": "Ketika memeriksa versi baru Piwik, selalu memperoleh",
         "ClickHereToOptIn": "Klik di sini agar terekam.",
         "ClickHereToOptOut": "Klik di sini agar tak-terekam.",
         "CustomLogoFeedbackInfo": "Jika Anda menyesuaikan logo Piwik, Anda mungkin juga tertarik untuk menyembunyikan tautan %s di menu atas. Untuk melakukannya, Anda mematikan pengaya Umpan Balik di halaman %s Pengelolaan Pengaya%s.",
@@ -56,7 +55,6 @@
         "OptOutExplanationBis": "Kode ini akan menampilkan bingkai pendam yang mengandung tautan untuk pengunjung agar Piwik tidak merekam dengan mengatur kuki Jangan-Lacak di peramban pengunjung. %sKlik di sini%s untuk melihat isi yang ditampilkan oleh bingkai pendam.",
         "OptOutForYourVisitors": "Piwik Jangan-Lacakan untuk Pengunjung",
         "PiwikIsInstalledAt": "Piwik terpasang di",
-        "PluginSettings": "Pengaturan pengaya",
         "StableReleases": "Bila Piwik merupakan hal yang penting dalam usaha Anda, kami menyarankan Anda menggunakan rilis stabil terkini. \tBila Anda menggunakan beta terkini dan Anda menemukan sebuah kutu atau sebuah sarah, harap %slihat di sini%s.",
         "TrackAGoal": "Lacak sebuah Tujuan",
         "TrackingCode": "Kode Palacakan",

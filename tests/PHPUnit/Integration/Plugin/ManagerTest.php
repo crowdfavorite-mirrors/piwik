@@ -55,7 +55,7 @@ class ManagerTest extends IntegrationTestCase
 
     public function test_loadTrackerPlugins_shouldBeAbleToLoadPluginsCorrectWhenItIsCached()
     {
-        $pluginsToLoad = array('CoreHome', 'UserLanguage', 'Login', 'CoreAdminHome');
+        $pluginsToLoad = array('CoreAdminHome', 'CoreHome', 'UserLanguage', 'Login');
         $this->getCacheForTrackerPlugins()->save($this->trackerCacheId, $pluginsToLoad);
 
         $pluginsToLoad = $this->manager->loadTrackerPlugins();
@@ -73,6 +73,15 @@ class ManagerTest extends IntegrationTestCase
 
         $this->assertEquals(array(), $pluginsToLoad);
         $this->assertEquals(array(), $this->manager->getLoadedPlugins());
+    }
+
+    public function test_deactivatePlugin()
+    {
+        $this->assertFalse($this->manager->isPluginActivated('ExampleTheme'));
+        $this->manager->activatePlugin('ExampleTheme');
+        $this->assertTrue($this->manager->isPluginActivated('ExampleTheme'));
+        $this->manager->deactivatePlugin('ExampleTheme');
+        $this->assertFalse($this->manager->isPluginActivated('ExampleTheme'));
     }
 
     private function getCacheForTrackerPlugins()

@@ -26,6 +26,10 @@ class Menu extends \Piwik\Plugin\Menu
             $login = $user['alias'];
         }
 
+        if (Plugin\Manager::getInstance()->isPluginActivated('Feedback')) {
+            $menu->addItem('General_Help', null, array('module' => 'Feedback', 'action' => 'index'));
+        }
+
         if (Piwik::isUserIsAnonymous()) {
             if (Plugin\Manager::getInstance()->isPluginActivated('Feedback')) {
                 $menu->addItem($login, null, array('module' => 'Feedback', 'action' => 'index'), 998);
@@ -38,7 +42,7 @@ class Menu extends \Piwik\Plugin\Menu
 
         $module = $this->getLoginModule();
         if (Piwik::isUserIsAnonymous()) {
-            $menu->addItem('Login_LogIn', null, array('module' => $module), 999);
+            $menu->addItem('Login_LogIn', null, array('module' => $module, 'action' => false), 999);
         } else {
             $menu->addItem('General_Logout', null, array('module' => $module, 'action' => 'logout', 'idSite' => null), 999);
         }

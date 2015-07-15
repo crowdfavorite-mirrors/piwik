@@ -13,6 +13,7 @@ use Piwik\API\ResponseBuilder;
 use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Metrics\Formatter;
+use Piwik\NoAccessException;
 use Piwik\Piwik;
 use Piwik\Plugin\ControllerAdmin;
 use Piwik\Plugins\LanguagesManager\API as APILanguagesManager;
@@ -67,8 +68,12 @@ class Controller extends ControllerAdmin
             $usersAccessByWebsite = array();
             $defaultReportSiteName = $this->translator->translate('UsersManager_ApplyToAllWebsites');
         } else {
-            $usersAccessByWebsite = APIUsersManager::getInstance()->getUsersAccessFromSite($idSiteSelected);
             $defaultReportSiteName = Site::getNameFor($idSiteSelected);
+            try {
+                $usersAccessByWebsite = APIUsersManager::getInstance()->getUsersAccessFromSite($idSiteSelected);
+            } catch (NoAccessException $e) {
+                return $this->noAdminAccessToWebsite($idSiteSelected, $defaultReportSiteName, $e->getMessage());
+            }
         }
 
         // we dont want to display the user currently logged so that the user can't change his settings from admin to view...
@@ -170,8 +175,8 @@ class Controller extends ControllerAdmin
     protected function getDefaultDates()
     {
         $dates = array(
-            'today'      => $this->translator->translate('General_Today'),
-            'yesterday'  => $this->translator->translate('General_Yesterday'),
+            'today'      => $this->translator->translate('Intl_Today'),
+            'yesterday'  => $this->translator->translate('Intl_Yesterday'),
             'previous7'  => $this->translator->translate('General_PreviousDays', 7),
             'previous30' => $this->translator->translate('General_PreviousDays', 30),
             'last7'      => $this->translator->translate('General_LastDays', 7),
@@ -393,6 +398,18 @@ class Controller extends ControllerAdmin
         }
 
         return $toReturn;
+    }
+
+    private function noAdminAccessToWebsite($idSiteSelected, $defaultReportSiteName, $message)
+    {
+        $view = new View('@UsersManager/noWebsiteAdminAccess');
+
+        $view->idSiteSelected = $idSiteSelected;
+        $view->defaultReportSiteName = $defaultReportSiteName;
+        $view->message = $message;
+        $this->setBasicVariablesView($view);
+
+        return $view->render();
     }
 
     private function processPasswordChange($userLogin)

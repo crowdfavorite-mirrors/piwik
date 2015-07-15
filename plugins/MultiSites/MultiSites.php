@@ -12,13 +12,6 @@ use Piwik\Piwik;
 
 class MultiSites extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        $info = parent::getInformation();
-        $info['authors'] = array(array('name' => 'Piwik PRO', 'homepage' => 'http://piwik.pro'));
-        return $info;
-    }
-
     /**
      * @see Piwik\Plugin::getListHooksRegistered
      */
@@ -67,14 +60,14 @@ class MultiSites extends \Piwik\Plugin
         $translations[] = 'Actions_SubmenuSitesearch';
         $translations[] = 'MultiSites_LoadingWebsites';
         $translations[] = 'General_ErrorRequest';
-        $translations[] = 'MultiSites_Pagination';
+        $translations[] = 'General_Pagination';
+        $translations[] = 'General_ClickToSearch';
     }
 
     public function getJsFiles(&$jsFiles)
     {
         $jsFiles[] = "plugins/MultiSites/angularjs/dashboard/dashboard-model.service.js";
         $jsFiles[] = "plugins/MultiSites/angularjs/dashboard/dashboard.controller.js";
-        $jsFiles[] = "plugins/MultiSites/angularjs/dashboard/dashboard-group.filter.js";
         $jsFiles[] = "plugins/MultiSites/angularjs/dashboard/dashboard.directive.js";
         $jsFiles[] = "plugins/MultiSites/angularjs/site/site.controller.js";
         $jsFiles[] = "plugins/MultiSites/angularjs/site/site.directive.js";

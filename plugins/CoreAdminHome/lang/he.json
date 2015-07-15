@@ -2,7 +2,6 @@
     "CoreAdminHome": {
         "Administration": "ניהול",
         "BrandingSettings": "הגדרות מיתוג",
-        "CheckReleaseGetVersion": "כאשר מתבצעת בדיקה לגרסה חדשה של פיווק, קבל תמיד",
         "ClickHereToOptIn": "לחץ כאן להצטרפות.",
         "ClickHereToOptOut": "לחץ כאן לביטול.",
         "EmailServerSettings": "הגדרות שרת אימייל",
@@ -19,7 +18,6 @@
         "MenuManage": "ניהול",
         "OptOutForYourVisitors": "התחמקות מ-Piwik עבור גולשיך",
         "PiwikIsInstalledAt": "Piwik מותקן ב",
-        "PluginSettings": "הגדרות תוסף",
         "TrackAGoal": "עקיבה אחר יעד",
         "TrackingCode": "קוד מעקב",
         "TrustedHostSettings": "מארח מהימן ע״י Piwik",

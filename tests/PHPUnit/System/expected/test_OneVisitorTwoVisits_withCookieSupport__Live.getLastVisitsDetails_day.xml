@@ -21,7 +21,7 @@
 				<type>action</type>
 				<url>http://example.org/store/purchase.htm</url>
 				<pageTitle>Checkout/Purchasing...</pageTitle>
-				<pageIdAction>12</pageIdAction>
+				<pageIdAction>13</pageIdAction>
 				
 				<pageId>9</pageId>
 				<generationTime>0.13s</generationTime>
@@ -59,7 +59,12 @@
 		<referrerUrl>http://search.yahoo.com/search?p=purchase</referrerUrl>
 		<referrerSearchEngineUrl>http://search.yahoo.com</referrerSearchEngineUrl>
 		<referrerSearchEngineIcon>plugins/Referrers/images/searchEngines/search.yahoo.com.png</referrerSearchEngineIcon>
+		<languageCode>fr</languageCode>
+		<language>French</language>
 		<deviceType>Desktop</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/normal.gif</deviceTypeIcon>
+		<deviceBrand>Unknown</deviceBrand>
+		<deviceModel />
 		<operatingSystem>Windows XP</operatingSystem>
 		<operatingSystemName>Windows</operatingSystemName>
 		<operatingSystemIcon>plugins/DevicesDetection/images/os/WIN.gif</operatingSystemIcon>
@@ -144,7 +149,7 @@
 			</row>
 			<row>
 				<type>outlink</type>
-				<url>http://dev.piwik.org/svn</url>
+				<url>https://outlinks.org/#!outlink-with-fragment-&lt;script&gt;</url>
 				<pageTitle />
 				<pageIdAction>5</pageIdAction>
 				
@@ -168,7 +173,7 @@
 			</row>
 			<row>
 				<type>outlink</type>
-				<url>http://outlinks.org/other_outlink</url>
+				<url>http://outlinks.org/other_outlink#fragment&amp;pk_campaign=Open%20partnership</url>
 				<pageTitle />
 				<pageIdAction>7</pageIdAction>
 				
@@ -182,7 +187,7 @@
 				<type>outlink</type>
 				<url>http://dev.piwik.org/svn</url>
 				<pageTitle />
-				<pageIdAction>5</pageIdAction>
+				<pageIdAction>8</pageIdAction>
 				
 				<pageId>6</pageId>
 				<timeSpent>72</timeSpent>
@@ -218,7 +223,7 @@
 				<type>action</type>
 				<url>http://example.org/index.htm</url>
 				<pageTitle>Looking at homepage after site search...</pageTitle>
-				<pageIdAction>10</pageIdAction>
+				<pageIdAction>11</pageIdAction>
 				
 				<pageId>8</pageId>
 				<generationTime>0.02s</generationTime>
@@ -256,7 +261,12 @@
 		<referrerUrl>http://referrer.com/page.htm?param=valuewith some spaces</referrerUrl>
 		<referrerSearchEngineUrl />
 		<referrerSearchEngineIcon />
+		<languageCode>fr</languageCode>
+		<language>French</language>
 		<deviceType>Desktop</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/normal.gif</deviceTypeIcon>
+		<deviceBrand>Unknown</deviceBrand>
+		<deviceModel />
 		<operatingSystem>Windows XP</operatingSystem>
 		<operatingSystemName>Windows</operatingSystemName>
 		<operatingSystemIcon>plugins/DevicesDetection/images/os/WIN.gif</operatingSystemIcon>

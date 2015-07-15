@@ -54,9 +54,9 @@ var broadcast = {
         }
         broadcast._isInit = true;
 
-        // Initialize history plugin.
-        // The callback is called at once by present location.hash
-        $.history.init(broadcast.pageload, {unescape: true});
+        angular.element(document).injector().invoke(function (historyService) {
+            historyService.init();
+        });
 
         if(noLoadingMessage != true) {
             piwikHelper.showAjaxLoading();
@@ -151,7 +151,7 @@ var broadcast = {
                 var handlerName = popoverParamParts[0];
                 popoverParamParts.shift();
                 var param = popoverParamParts.join(':');
-                if (typeof broadcast.popoverHandlers[handlerName] != 'undefined') {
+                if (typeof broadcast.popoverHandlers[handlerName] != 'undefined' && !broadcast.isLoginPage()) {
                     broadcast.popoverHandlers[handlerName](param);
                 }
             }
@@ -162,6 +162,14 @@ var broadcast = {
 
             $('.pageWrap #content:not(.admin)').empty();
         }
+    },
+
+    /**
+     * Returns if the current page is the login page
+     * @return {boolean}
+     */
+    isLoginPage: function() {
+        return !!$('body#loginPage').length;
     },
 
     /**
@@ -214,7 +222,9 @@ var broadcast = {
         else {
             // Let history know about this new Hash and load it.
             broadcast.forceReload = true;
-            $.history.load(currentHashStr);
+            angular.element(document).injector().invoke(function (historyService) {
+                historyService.load(currentHashStr);
+            });
         }
     },
 
@@ -370,7 +380,9 @@ var broadcast = {
         }
 
         broadcast.forceReload = false;
-        $.history.load(newHash);
+        angular.element(document).injector().invoke(function (historyService) {
+            historyService.load(newHash);
+        });
     },
 
     /**
@@ -402,6 +414,13 @@ var broadcast = {
                 broadcast.getParamValue('action', urlAjax),
                 broadcast.getParamValue('idGoal', urlAjax) || broadcast.getParamValue('idDashboard', urlAjax)
             );
+        }
+
+        if(broadcast.getParamValue('module', urlAjax) == 'API') {
+            broadcast.lastUrlRequested = null;
+            $('#content').html("Loading content from the API and displaying it within Piwik is not allowed.");
+            piwikHelper.hideAjaxLoading();
+            return false;
         }
 
         piwikHelper.hideAjaxError('loadingError');

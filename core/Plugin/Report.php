@@ -14,6 +14,7 @@ use Piwik\Cache;
 use Piwik\CacheId;
 use Piwik\Columns\Dimension;
 use Piwik\DataTable;
+use Piwik\DataTable\Filter\Sort;
 use Piwik\Menu\MenuReporting;
 use Piwik\Metrics;
 use Piwik\Cache as PiwikCache;
@@ -182,6 +183,27 @@ class Report
     protected $order = 1;
 
     /**
+     * Separator for building recursive labels (or paths)
+     * @var string
+     * @api
+     */
+    protected $recursiveLabelSeparator = ' - ';
+
+    /**
+     * Default sort column. Either a column name or a column id.
+     *
+     * @var string|int
+     */
+    protected $defaultSortColumn = 'nb_visits';
+
+    /**
+     * Default sort desc. If true will sort by default desc, if false will sort by default asc
+     *
+     * @var bool
+     */
+    protected $defaultSortOrderDesc = true;
+
+    /**
      * @var array
      * @ignore
      */
@@ -275,7 +297,7 @@ class Report
      * Defaults to false
      * @return bool
      */
-    public function alwaysUseDefaultViewDataTable ()
+    public function alwaysUseDefaultViewDataTable()
     {
         return false;
     }
@@ -290,7 +312,6 @@ class Report
      */
     public function configureView(ViewDataTable $view)
     {
-
     }
 
     /**
@@ -357,6 +378,15 @@ class Report
     }
 
     /**
+     * @ignore
+     * @see $recursiveLabelSeparator
+     */
+    public function getRecursiveLabelSeparator()
+    {
+        return $this->recursiveLabelSeparator;
+    }
+
+    /**
      * Returns an array of supported metrics and their corresponding translations. Eg `array('nb_visits' => 'Visits')`.
      * By default the given {@link $metrics} are used and their corresponding translations are looked up automatically.
      * If a metric is not translated, you should add the default metric translation for this metric using
@@ -402,7 +432,7 @@ class Report
         foreach ($restrictToColumns as $column) {
             if (isset($processedMetricsById[$column])) {
                 $metrics = array_merge($metrics, $processedMetricsById[$column]->getDependentMetrics());
-            } else if (isset($metricsSet[$column])) {
+            } elseif (isset($metricsSet[$column])) {
                 $metrics[] = $column;
             }
         }
@@ -464,18 +494,18 @@ class Report
 
         $processedMetrics = $this->processedMetrics ?: array();
         foreach ($processedMetrics as $processedMetric) {
-            if (!($processedMetric instanceof ProcessedMetric)) {
-                continue;
-            }
+            if (is_string($processedMetric) && !empty($translations[$processedMetric])) {
+                $documentation[$processedMetric] = $translations[$processedMetric];
+            } elseif ($processedMetric instanceof ProcessedMetric) {
+                $name = $processedMetric->getName();
+                $metricDocs = $processedMetric->getDocumentation();
+                if (empty($metricDocs)) {
+                    $metricDocs = @$translations[$name];
+                }
 
-            $name = $processedMetric->getName();
-            $metricDocs = $processedMetric->getDocumentation();
-            if (empty($metricDocs)) {
-                $metricDocs = @$translations[$name];
-            }
-
-            if (!empty($metricDocs)) {
-                $documentation[$processedMetric->getName()] = $metricDocs;
+                if (!empty($metricDocs)) {
+                    $documentation[$processedMetric->getName()] = $metricDocs;
+                }
             }
         }
 
@@ -563,6 +593,26 @@ class Report
     }
 
     /**
+     * @ignore
+     */
+    public function getDefaultSortColumn()
+    {
+        return $this->defaultSortColumn;
+    }
+
+    /**
+     * @ignore
+     */
+    public function getDefaultSortOrder()
+    {
+        if ($this->defaultSortOrderDesc) {
+            return Sort::ORDER_DESC;
+        }
+
+        return Sort::ORDER_ASC;
+    }
+
+    /**
      * Get the list of related reports if there are any. They will be displayed for instance below a report as a
      * recommended related report.
      *
@@ -624,6 +674,16 @@ class Report
     public function getCategory()
     {
         return Piwik::translate($this->category);
+    }
+
+    /**
+     * Get the translation key of the category the report belongs to.
+     * @return string
+     * @ignore
+     */
+    public function getCategoryKey()
+    {
+        return $this->category;
     }
 
     /**
@@ -780,6 +840,7 @@ class Report
         $reports = self::getAllReportClasses();
         $cacheId = CacheId::languageAware('Reports' . md5(implode('', $reports)));
         $cache   = PiwikCache::getTransientCache();
+
 
         if (!$cache->contains($cacheId)) {
             $instances = array();

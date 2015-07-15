@@ -14,7 +14,7 @@ describe("Installation", function () {
     this.fixture = null;
 
     before(function () {
-        testEnvironment.testUseRegularAuth = 1;
+        testEnvironment.testUseMockAuth = 0;
         testEnvironment.configFileLocal = path.join(PIWIK_INCLUDE_PATH, "/tmp/test.config.ini.php");
         testEnvironment.dontUseTestConfig = true;
         testEnvironment.tablesPrefix = 'piwik_';
@@ -29,7 +29,7 @@ describe("Installation", function () {
         delete testEnvironment.configFileLocal;
         delete testEnvironment.dontUseTestConfig;
         delete testEnvironment.tablesPrefix;
-        delete testEnvironment.testUseRegularAuth;
+        delete testEnvironment.testUseMockAuth;
         testEnvironment.save();
     });
 
@@ -47,19 +47,19 @@ describe("Installation", function () {
 
     it("should display the system check page when next is clicked on the first page", function (done) {
         expect.screenshot("system_check").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.next-step .btn');
         }, done);
     });
 
     it("should display the database setup page when next is clicked on the system check page", function (done) {
         expect.screenshot("db_setup").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.next-step .btn');
         }, done);
     });
 
     it("should fail when the next button is clicked and no database info is entered in the form", function (done) {
         expect.screenshot("db_setup_fail").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.btn');
         }, done);
     });
 
@@ -76,19 +76,19 @@ describe("Installation", function () {
             }
 
             page.sendKeys('input[name=dbname]', 'newdb');
-            page.click('.submit');
+            page.click('.btn');
         }, done);
     });
 
     it("should display the superuser configuration page when next is clicked on the tables created page", function (done) {
         expect.screenshot("superuser").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.next-step .btn');
         }, done);
     });
 
     it("should fail when incorrect information is entered in the superuser configuration page", function (done) {
         expect.screenshot("superuser_fail").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.btn');
         }, done);
     });
 
@@ -98,14 +98,14 @@ describe("Installation", function () {
             page.sendKeys('input[name=password]', 'thepassword');
             page.sendKeys('input[name=password_bis]', 'thepassword');
             page.sendKeys('input[name=email]', 'hello@piwik.org');
-            page.click('.submit');
+            page.click('.btn');
             page.wait(3000);
         }, done);
     });
 
     it("should should fail when incorrect information is entered in the setup a website page", function (done) {
         expect.screenshot("setup_website_fail").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.btn');
         }, done);
     });
 
@@ -117,20 +117,20 @@ describe("Installation", function () {
                 $('select[name=timezone]').val('Europe/Paris');
                 $('select[name=ecommerce]').val('1');
             });
-            page.click('.submit');
+            page.click('.btn');
             page.wait(3000);
         }, done);
     });
 
     it("should display the congratulations page when next is clicked on the javascript tracking page", function (done) {
         expect.screenshot("congrats").to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.next-step .btn');
         }, done);
     });
 
     it("should continue to piwik after submitting on the privacy settings form in the congrats page", function (done) {
         expect.screenshot('login_form', 'Login').to.be.capture(function (page) {
-            page.click('.submit');
+            page.click('.btn');
         }, done);
     });
 });

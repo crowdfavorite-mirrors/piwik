@@ -2,6 +2,87 @@
 
 This is a changelog for Piwik platform developers. All changes for our HTTP API's, Plugins, Themes, etc will be listed here.
 
+## Piwik 2.14.0
+
+### Breaking Changes
+* The `UserSettings` API has been removed. The API was deprecated in earlier versions. Use `DevicesDetection`, `Resolution` and `DevicePlugins` API instead.
+* Many translations have been moved to the new Intl plugin. Most of them will still work, but please update their usage. See https://github.com/piwik/piwik/pull/8101 for a full list 
+
+### New features 
+* The JavaScript Tracker does now track outlinks and downloads if a user opens the context menu if the `enabled` parameter of the `enableLinkTracking()` method is set to `true`. To use this new feature use `tracker.enableLinkTracking(true)` or `_paq.push(['enableLinkTracking', true]);`. This is not industry standard and is vulnerable to false positives since not every user will select "Open in a new tab" when the context menu is shown. Most users will do though and it will lead to more accurate results in most cases.
+* The JavaScript Tracker now contains the 'heart beat' feature which can be used to obtain more accurate visit lengths by periodically sending 'ping' requests to Piwik. To use this feature use `tracker.enableHeartBeatTimer();` or `_paq.push(['enableHeartBeatTimer']);`. By default, a ping request will be sent every 15 seconds. You can specify a custom ping delay (in seconds) by passing an argument, eg, `tracker.enableHeartBeatTimer(10);` or `_paq.push(['enableHeartBeatTimer', 10]);`.
+* New custom segment `languageCode` that lets you segment visitors that are using a particular language. Example values: `de`, `fr`, `en-gb`, `zh-cn`, etc.
+* Segment `userId` now supports any segment operator (previously only operator Contains `=@` was supported for this segment).
+
+### Commands updates
+* The command `core:archive` now has two new parameter: `--force-idsegments` and `--skip-idsegments` that let you force (or skip) processing archives for one or several custom segments.
+* The command `scheduled-tasks:run` now has an argument `task` that lets you force run a particular scheduled task.
+
+### Library updates
+* Updated pChart library from 2.1.3 to 2.1.4. The files were moved from the directory `libs/pChart2.1.3` to `libs/pChart`
+
+### Internal change
+* To execute UI tests "ImageMagick" is now required.
+* The Q JavaScript promise library is now distributed with tests and can be used in the piwik.js tests.
+
+## Piwik 2.13.0
+
+### Breaking Changes
+* The API method `Live.getLastVisitsDetails` does no longer support the API parameter `filter_sort_column` to prevent possible memory issues when `filter_offset` is large.
+* The Event `Site.setSite` was removed as it causes performance problems.
+* `piwik.php` does now return a HTTP 400 (Bad request) if requested without any tracking parameters (GET/POST). If you still want to use `piwik.php` for checks please use `piwik.php?rec=0`.
+
+### Deprecations
+* The method `Piwik\Archive::getBlob()` has been deprecated and will be removed from June 1st 2015. Use one of the methods `getDataTable*()` methods instead.
+* The API parameter `countVisitorsToFetch` of the API method `Live.getLastVisitsDetails` has been deprecated as `filter_offset` and `filter_limit` work correctly now.
+
+### New commands
+* There is now a `diagnostic:run` command to run the system check from the command line.
+* There is now an option `--xhprof` that can be used with any command to profile that command via XHProf.
+
+### APIs Improvements
+* Visitor details now additionally contain: `deviceTypeIcon`, `deviceBrand` and `deviceModel`
+* In 2.6.0 we added the possibility to use `filter_limit` and `filter_offset` if an API returns an indexed array. This was not working in all cases and is fixed now. 
+* The API parameter `filter_pattern` and `filter_offset[]` can now be used if an API returns an indexed array.
+
+### Internal changes
+
+* The referrer spam filter has moved from the `referrer_urls_spam` INI option (in `global.ini.php`) to a separate package (see [https://github.com/piwik/referrer-spam-blacklist](https://github.com/piwik/referrer-spam-blacklist)).
+
+## Piwik 2.12.0
+
+### Breaking Changes
+* The deprecated method `Period::factory()` has been removed. Use `Period\Factory` instead.
+* The deprecated method `Config::getConfigSuperUserForBackwardCompatibility()` has been removed.
+* The deprecated methods `MenuAdmin::addEntry()` and `MenuAdmin::removeEntry()` have been removed. Use `Piwik\Plugin\Menu` instead.
+* The deprecated methods `MenuTop::addEntry()` and `MenuTop::removeEntry()` have been removed. Use `Piwik\Plugin\Menu` instead.
+* The deprecated method `SettingsPiwik::rewriteTmpPathWithInstanceId()` has been removed.
+* The following deprecated methods from the `Piwik\IP` class have been removed, use `Piwik\Network\IP` instead:
+  * `sanitizeIp()`
+  * `sanitizeIpRange()`
+  * `P2N()`
+  * `N2P()`
+  * `prettyPrint()`
+  * `isIPv4()`
+  * `long2ip()`
+  * `isIPv6()`
+  * `isMappedIPv4()`
+  * `getIPv4FromMappedIPv6()`
+  * `getIpsForRange()`
+  * `isIpInRange()`
+  * `getHostByAddr()`
+
+### Deprecations
+* `API` classes should no longer have a protected constructor. Classes with a protected constructor will generate a notice in the logs and should expose a public constructor instead.
+* Update classes should not declare static `getSql()` and `update()` methods anymore. It is still supported to use those, but developers should instead override the `Updates::getMigrationQueries()` and `Updates::doUpdate()` instance methods.
+
+### New features
+* `API` classes can now use dependency injection in their constructor to inject other instances.
+
+### New commands
+* There is now a command `core:purge-old-archive-data` that can be used to manually purge temporary, error-ed and invalidated archives from one or more archive tables.
+* There is now a command `usercountry:attribute` that can be used to re-attribute geolocated location data to existing visits and conversions. If you have visits that were tracked before setting up GeoIP, you can use this command to add location data to them.
+
 ## Piwik 2.11.0
 
 ### Breaking Changes
@@ -33,7 +114,7 @@ This is a changelog for Piwik platform developers. All changes for our HTTP API'
 * During UI tests we do now add a CSS class to the HTML element called `uiTest`. This allows you do hide content when screenshots are captured.
 
 ### New commands
-* A new command (core:fix-duplicate-log-actions) has been added which can be used to remove duplicate actions and correct references to them in other tables. Duplicates were caused by this bug: https://github.com/piwik/piwik/issues/6436
+* A new command (core:fix-duplicate-log-actions) has been added which can be used to remove duplicate actions and correct references to them in other tables. Duplicates were caused by this bug: [#6436](https://github.com/piwik/piwik/issues/6436)
 
 ### Library updates
 * Updated AngularJS from 1.2.26 to 1.2.28
@@ -248,3 +329,4 @@ We are using `@since` annotations in case we are introducing new API's to make i
  -->
 
 Find the general Piwik Changelogs for each release at [piwik.org/changelog](http://piwik.org/changelog/)
+ 

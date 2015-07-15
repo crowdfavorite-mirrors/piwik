@@ -78,7 +78,7 @@ class Proxy extends Singleton
         $this->checkClassIsSingleton($className);
 
         $rClass = new ReflectionClass($className);
-        if(!$this->shouldHideAPIMethod($rClass->getDocComment())) {
+        if (!$this->shouldHideAPIMethod($rClass->getDocComment())) {
             foreach ($rClass->getMethods() as $method) {
                 $this->loadMethodMetadata($className, $method);
             }
@@ -388,7 +388,6 @@ class Proxy extends Singleton
                     $requestValue = Common::getRequestVar($name, null, null, $parametersRequest);
                 } else {
                     try {
-
                         if ($name == 'segment' && !empty($parametersRequest['segment'])) {
                             // segment parameter is an exception: we do not want to sanitize user input or it would break the segment encoding
                             $requestValue = ($parametersRequest['segment']);
@@ -490,7 +489,7 @@ class Proxy extends Singleton
         $hideLine = trim($hideLine);
         $hideLine .= ' ';
 
-	$token = trim(strtok($hideLine, " "), "\n");
+        $token = trim(strtok($hideLine, " "), "\n");
 
         $hide = false;
 
@@ -526,18 +525,6 @@ class Proxy extends Singleton
         }
 
         return true;
-    }
-
-    /**
-     * Returns the number of required parameters (parameters without default values).
-     *
-     * @param string $class The class name
-     * @param string $name The method name
-     * @return int The number of required parameters
-     */
-    private function getNumberOfRequiredParameters($class, $name)
-    {
-        return $this->metadataArray[$class][$name]['numberOfRequiredParameters'];
     }
 
     /**

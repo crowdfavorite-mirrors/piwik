@@ -12,6 +12,7 @@ use Piwik\Access;
 use Piwik\Cache;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db;
+use Piwik\Plugin\Manager;
 use Piwik\Plugins\CoreHome\Columns\UserId;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\Mock\FakeAccess;
@@ -255,9 +256,13 @@ class UserIdTest extends IntegrationTestCase
 
     private function setSuperUser()
     {
-        $pseudoMockAccess = new FakeAccess();
-        $pseudoMockAccess::setSuperUserAccess(true);
-        Access::setSingletonInstance($pseudoMockAccess);
+        FakeAccess::$superUser = true;
     }
 
+    public function provideContainerConfig()
+    {
+        return array(
+            'Piwik\Access' => new FakeAccess()
+        );
+    }
 }

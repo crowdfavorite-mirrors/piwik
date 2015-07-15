@@ -75,7 +75,7 @@ class Model
 
         try {
             $this->getDb()->query($sql, $sqlBind);
-        } catch(Exception $e){
+        } catch (Exception $e) {
             Common::printDebug("There was an error while updating the Conversion: " . $e->getMessage());
 
             return false;
@@ -120,7 +120,6 @@ class Model
         $bind = array();
 
         foreach ($ecommerceItems as $item) {
-
             if ($i === 0) {
                 $fields = implode(', ', array_keys($item));
                 $sql   .= ' (' . $fields . ') VALUES ';
@@ -333,62 +332,64 @@ class Model
             $idSite
         );
 
-        if ($shouldMatchOneFieldOnly) {
-            if ($isVisitorIdToLookup) {
-                $whereCommon .= ' AND idvisitor = ?';
-                $bindSql[]    = $idVisitor;
-            } else {
-                $whereCommon .= ' AND config_id = ?';
-                $bindSql[]    = $configId;
+        if ($shouldMatchOneFieldOnly && $isVisitorIdToLookup) {
+            $visitRow = $this->findVisitorByVisitorId($idVisitor, $select, $from, $whereCommon, $bindSql);
+        } elseif ($shouldMatchOneFieldOnly) {
+            $visitRow = $this->findVisitorByConfigId($configId, $select, $from, $whereCommon, $bindSql);
+        } else {
+            $visitRow = $this->findVisitorByVisitorId($idVisitor, $select, $from, $whereCommon, $bindSql);
+
+            if (empty($visitRow)) {
+                $whereCommon .= ' AND user_id IS NULL ';
+                $visitRow = $this->findVisitorByConfigId($configId, $select, $from, $whereCommon, $bindSql);
             }
-
-            $sql = "$select $from
-                    WHERE " . $whereCommon . "
-                    ORDER BY visit_last_action_time DESC
-                    LIMIT 1";
-        } // We have a config_id AND a visitor_id. We match on either of these.
-        // 		Why do we also match on config_id?
-        //		we do not trust the visitor ID only. Indeed, some browsers, or browser addons,
-        // 		cause the visitor id from the 1st party cookie to be different on each page view!
-        // 		It is not acceptable to create a new visit every time such browser does a page view,
-        // 		so we also backup by searching for matching config_id.
-        // We use a UNION here so that each sql query uses its own INDEX
-        else {
-            // will use INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time)
-            $where       = ' AND config_id = ? AND user_id IS NULL ';
-            $bindSql[]   = $configId;
-            $sqlConfigId = "$select ,
-                0 as priority
-                $from
-                WHERE $whereCommon $where
-                ORDER BY visit_last_action_time DESC
-                LIMIT 1
-            ";
-            // will use INDEX index_idsite_idvisitor (idsite, idvisitor)
-            $bindSql[] = $timeLookBack;
-            $bindSql[] = $timeLookAhead;
-            $bindSql[] = $idSite;
-            $where     = ' AND idvisitor = ?';
-            $bindSql[] = $idVisitor;
-            $sqlVisitorId = "$select ,
-                1 as priority
-                $from
-                WHERE $whereCommon $where
-                ORDER BY visit_last_action_time DESC
-                LIMIT 1
-            ";
-
-            // We join both queries and favor the one matching the visitor_id if it did match
-            $sql = " ( $sqlConfigId )
-                UNION
-                ( $sqlVisitorId )
-                ORDER BY priority DESC
-                LIMIT 1";
         }
+
+        return $visitRow;
+    }
+
+    private function findVisitorByVisitorId($idVisitor, $select, $from, $where, $bindSql)
+    {
+        // will use INDEX index_idsite_idvisitor (idsite, idvisitor)
+        $where .= ' AND idvisitor = ?';
+        $bindSql[] = $idVisitor;
+
+        return $this->fetchVisitor($select, $from, $where, $bindSql);
+    }
+
+    private function findVisitorByConfigId($configId, $select, $from, $where, $bindSql)
+    {
+        // will use INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time)
+        $where .= ' AND config_id = ?';
+        $bindSql[] = $configId;
+
+        return $this->fetchVisitor($select, $from, $where, $bindSql);
+    }
+
+    private function fetchVisitor($select, $from, $where, $bindSql)
+    {
+        $sql = "$select $from WHERE " . $where . "
+                ORDER BY visit_last_action_time DESC
+                LIMIT 1";
 
         $visitRow = $this->getDb()->fetch($sql, $bindSql);
 
         return $visitRow;
+    }
+
+    /**
+     * Returns true if the site doesn't have log data.
+     *
+     * @param int $siteId
+     * @return bool
+     */
+    public function isSiteEmpty($siteId)
+    {
+        $sql = sprintf('SELECT idsite FROM %s WHERE idsite = ? limit 1', Common::prefixTable('log_visit'));
+
+        $result = \Piwik\Db::fetchOne($sql, array($siteId));
+
+        return $result == null;
     }
 
     private function visitFieldsToQuery($valuesToUpdate)

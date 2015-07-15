@@ -8,8 +8,11 @@
 
 namespace Piwik\Plugins\TestRunner\Commands;
 
+use Piwik\Application\Environment;
 use Piwik\Config;
 use Piwik\Plugin\ConsoleCommand;
+use Piwik\Tests\Framework\TestingEnvironmentManipulator;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 use Piwik\Url;
 use Piwik\Tests\Framework\Fixture;
 use Symfony\Component\Console\Input\InputArgument;
@@ -88,6 +91,12 @@ class TestsSetupFixture extends ConsoleCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        if (!defined('PIWIK_TEST_MODE')) {
+            define('PIWIK_TEST_MODE', true);
+        }
+
+        Environment::setGlobalEnvironmentManipulator(new TestingEnvironmentManipulator(new TestingEnvironmentVariables()));
+
         $serverGlobal = $input->getOption('server-global');
         if ($serverGlobal) {
             $_SERVER = json_decode($serverGlobal, true);
@@ -124,7 +133,6 @@ class TestsSetupFixture extends ConsoleCommand
 
         // perform setup and/or teardown
         if ($input->getOption('teardown')) {
-            exit;
             $fixture->getTestEnvironment()->save();
             $fixture->performTearDown();
         } else {
@@ -225,19 +233,12 @@ class TestsSetupFixture extends ConsoleCommand
             $fixture->extraPluginsToLoad = explode(',', $extraPluginsToLoad);
         }
 
-        if ($fixture->createConfig) {
-            Config::getInstance()->setTestEnvironment($pathLocal = null, $pathGlobal = null, $pathCommon = null, $allowSave);
-        }
-
-        $fixture->createConfig = false;
-
         return $fixture;
     }
 
     private function requireFixtureFiles(InputInterface $input)
     {
         require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
-        require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/TestingEnvironment.php';
 
         $fixturesToLoad = array(
             '/tests/PHPUnit/Fixtures/*.php',

@@ -17,6 +17,7 @@ use Piwik\Db;
 use Piwik\DbHelper;
 use Piwik\ReportRenderer;
 use Piwik\Tests\Framework\Constraint\ResponseCode;
+use Piwik\Tests\Framework\Constraint\HttpResponseText;
 use Piwik\Tests\Framework\TestRequest\ApiTestConfig;
 use Piwik\Tests\Framework\TestRequest\Collection;
 use Piwik\Tests\Framework\TestRequest\Response;
@@ -63,6 +64,10 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         }
 
         $fixture->testCaseClass = get_called_class();
+
+        if (!array_key_exists('loadRealTranslations', $fixture->extraTestEnvVars)) {
+            $fixture->extraTestEnvVars['loadRealTranslations'] = true; // load real translations by default for system tests
+        }
 
         try {
             $fixture->performSetUp();
@@ -275,7 +280,7 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         return $apiCalls;
     }
 
-    protected function _testApiUrl($testName, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove = array(), $params = array())
+    protected function _testApiUrl($testName, $apiId, $requestUrl, $compareAgainst, $params = array())
     {
         list($processedFilePath, $expectedFilePath) =
             $this->getProcessedAndExpectedPaths($testName, $apiId, $format = null, $compareAgainst);
@@ -440,7 +445,7 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         $testRequests = $this->getTestRequestsCollection($api, $testConfig, $api);
 
         foreach ($testRequests->getRequestUrls() as $apiId => $requestUrl) {
-            $this->_testApiUrl($testName . $testConfig->testSuffix, $apiId, $requestUrl, $testConfig->compareAgainst, $testConfig->xmlFieldsToRemove, $params);
+            $this->_testApiUrl($testName . $testConfig->testSuffix, $apiId, $requestUrl, $testConfig->compareAgainst, $params);
         }
 
         // change the language back to en
@@ -566,7 +571,7 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
                     } else if (is_numeric($value)) {
                         $values[] = $value;
                     } else if (!ctype_print($value)) {
-                        $values[] = "x'" . bin2hex(substr($value, 1)) . "'";
+                        $values[] = "x'" . bin2hex($value) . "'";
                     } else {
                         $values[] = "?";
                         $bind[] = $value;
@@ -596,6 +601,11 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         }
     }
 
+    public function assertHttpResponseText($expectedResponseText, $url, $message = '')
+    {
+        self::assertThat($url, new HttpResponseText($expectedResponseText), $message);
+    }
+
     public function assertResponseCode($expectedResponseCode, $url, $message = '')
     {
         self::assertThat($url, new ResponseCode($expectedResponseCode), $message);
@@ -611,6 +621,16 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         self::assertTrue(Db::hasDatabaseObject(), $message);
     }
 
+    /**
+     * Use this method to return custom container configuration that you want to apply for the tests.
+     * This configuration will override Fixture config.
+     *
+     * @return array
+     */
+    public static function provideContainerConfigBeforeClass()
+    {
+        return array();
+    }
 }
 
 SystemTestCase::$fixture = new \Piwik\Tests\Framework\Fixture();

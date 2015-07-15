@@ -8,6 +8,7 @@
  */
 
 namespace Piwik\ViewDataTable;
+
 use Piwik\API\Request as ApiRequest;
 use Piwik\DataTable;
 use Piwik\DataTable\Filter\PivotByDimension;
@@ -120,7 +121,8 @@ class Config
         'show_pagination_control',
         'show_offset_information',
         'hide_annotations_view',
-        'export_limit'
+        'export_limit',
+        'columns_to_display'
     );
 
     /**
@@ -557,7 +559,7 @@ class Config
     /**
      * @ignore
      */
-    public function getFiltersToRun()
+    private function getFiltersToRun()
     {
         $priorityFilters     = array();
         $presentationFilters = array();
@@ -579,6 +581,20 @@ class Config
         }
 
         return array($priorityFilters, $presentationFilters);
+    }
+
+    public function getPriorityFilters()
+    {
+        $filters = $this->getFiltersToRun();
+
+        return $filters[0];
+    }
+
+    public function getPresentationFilters()
+    {
+        $filters = $this->getFiltersToRun();
+
+        return $filters[1];
     }
 
     /**

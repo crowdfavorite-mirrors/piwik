@@ -11,14 +11,12 @@ namespace Piwik;
 
 use Exception;
 use Piwik\API\Request;
-use Piwik\API\ResponseBuilder;
 use Piwik\Container\StaticContainer;
 use Piwik\Exception\AuthenticationFailedException;
+use Piwik\Exception\DatabaseSchemaIsNewerThanCodebaseException;
+use Piwik\Http\ControllerResolver;
 use Piwik\Http\Router;
-use Piwik\Plugin\Controller;
-use Piwik\Plugin\Report;
-use Piwik\Plugin\Widgets;
-use Piwik\Session;
+use Piwik\Plugins\CoreAdminHome\CustomLogo;
 
 /**
  * This singleton dispatches requests to the appropriate plugin Controller.
@@ -110,83 +108,6 @@ class FrontController extends Singleton
         }
     }
 
-    protected function makeController($module, $action, &$parameters)
-    {
-        $container = StaticContainer::getContainer();
-
-        $controllerClassName = $this->getClassNameController($module);
-
-        // TRY TO FIND ACTION IN CONTROLLER
-        if (class_exists($controllerClassName)) {
-
-            $class = $this->getClassNameController($module);
-            /** @var $controller Controller */
-            $controller = $container->make($class);
-
-            $controllerAction = $action;
-            if ($controllerAction === false) {
-                $controllerAction = $controller->getDefaultAction();
-            }
-
-            if (is_callable(array($controller, $controllerAction))) {
-
-                return array($controller, $controllerAction);
-            }
-
-            if ($action === false) {
-                $this->triggerControllerActionNotFoundError($module, $controllerAction);
-            }
-
-        }
-
-        // TRY TO FIND ACTION IN WIDGET
-        $widget = Widgets::factory($module, $action);
-
-        if (!empty($widget)) {
-
-            $parameters['widgetModule'] = $module;
-            $parameters['widgetMethod'] = $action;
-
-            return array($container->make('Piwik\Plugins\CoreHome\Controller'), 'renderWidget');
-        }
-
-        // TRY TO FIND ACTION IN REPORT
-        $report = Report::factory($module, $action);
-
-        if (!empty($report)) {
-
-            $parameters['reportModule'] = $module;
-            $parameters['reportAction'] = $action;
-
-            return array($container->make('Piwik\Plugins\CoreHome\Controller'), 'renderReportWidget');
-        }
-
-        if (!empty($action) && Report::PREFIX_ACTION_IN_MENU === substr($action, 0, strlen(Report
-            ::PREFIX_ACTION_IN_MENU))) {
-            $reportAction = lcfirst(substr($action, 4)); // menuGetPageUrls => getPageUrls
-            $report       = Report::factory($module, $reportAction);
-
-            if (!empty($report)) {
-                $parameters['reportModule'] = $module;
-                $parameters['reportAction'] = $reportAction;
-
-                return array($container->make('Piwik\Plugins\CoreHome\Controller'), 'renderReportMenu');
-            }
-        }
-
-        $this->triggerControllerActionNotFoundError($module, $action);
-    }
-
-    protected function triggerControllerActionNotFoundError($module, $action)
-    {
-        throw new Exception("Action '$action' not found in the module '$module'.");
-    }
-
-    protected function getClassNameController($module)
-    {
-        return "\\Piwik\\Plugins\\$module\\Controller";
-    }
-
     /**
      * Executes the requested plugin controller method and returns the data, capturing anything the
      * method `echo`s.
@@ -195,7 +116,7 @@ class FrontController extends Singleton
      * of whatever is in the output buffer._
      *
      * @param string $module The name of the plugin whose controller to execute, eg, `'UserCountryMap'`.
-     * @param string $action The controller action name, eg, `'realtimeMap'`.
+     * @param string $actionName The controller action name, eg, `'realtimeMap'`.
      * @param array $parameters Array of parameters to pass to the controller action method.
      * @return string The `echo`'d data or the return value of the controller action.
      * @deprecated
@@ -246,7 +167,7 @@ class FrontController extends Singleton
 
     public static function setUpSafeMode()
     {
-        register_shutdown_function(array('\\Piwik\\FrontController','triggerSafeModeWhenError'));
+        register_shutdown_function(array('\\Piwik\\FrontController', 'triggerSafeModeWhenError'));
     }
 
     public static function triggerSafeModeWhenError()
@@ -261,34 +182,6 @@ class FrontController extends Singleton
 
             echo $message;
         }
-    }
-
-    /**
-     * Loads the config file
-     * This is overridden in tests to ensure test config file is used
-     *
-     * @return Exception
-     */
-    public static function createConfigObject()
-    {
-        $exceptionToThrow = false;
-        try {
-            Config::getInstance()->database; // access property to check if the local file exists
-        } catch (Exception $exception) {
-            Log::debug($exception);
-
-            /**
-             * Triggered when the configuration file cannot be found or read, which usually
-             * means Piwik is not installed yet.
-             *
-             * This event can be used to start the installation process or to display a custom error message.
-             *
-             * @param Exception $exception The exception that was thrown by `Config::getInstance()`.
-             */
-            Piwik::postEvent('Config.NoConfigurationFile', array($exception), $pending = true);
-            $exceptionToThrow = $exception;
-        }
-        return $exceptionToThrow;
     }
 
     /**
@@ -310,8 +203,6 @@ class FrontController extends Singleton
         }
         $initialized = true;
 
-        $exceptionToThrow = self::createConfigObject();
-
         $tmpPath = StaticContainer::get('path.tmp');
 
         $directoriesToCheck = array(
@@ -331,10 +222,6 @@ class FrontController extends Singleton
 
         Plugin\Manager::getInstance()->loadPluginTranslations();
         Plugin\Manager::getInstance()->loadActivatedPlugins();
-
-        if ($exceptionToThrow) {
-            throw $exceptionToThrow;
-        }
 
         // try to connect to the database
         try {
@@ -396,7 +283,7 @@ class FrontController extends Singleton
          */
         Piwik::postEvent('Request.dispatchCoreAndPluginUpdatesScreen');
 
-        Updater::throwIfPiwikVersionIsOlderThanDBSchema();
+        $this->throwIfPiwikVersionIsOlderThanDBSchema();
 
         \Piwik\Plugin\Manager::getInstance()->installLoadedPlugins();
 
@@ -489,28 +376,28 @@ class FrontController extends Singleton
 
     protected function handleMaintenanceMode()
     {
-        if (Config::getInstance()->General['maintenance_mode'] == 1
-            && !Common::isPhpCliMode()
-        ) {
-            $format = Common::getRequestVar('format', '');
-
-            $message = "Piwik is in scheduled maintenance. Please come back later."
-                . " The administrator can disable maintenance by editing the file piwik/config/config.ini.php and removing the following: "
-                . " maintenance_mode=1 ";
-            if (Config::getInstance()->Tracker['record_statistics'] == 0) {
-                $message .= ' and record_statistics=0';
-            }
-
-            $exception = new Exception($message);
-            // extend explain how to re-enable
-            // show error message when record stats = 0
-            if (empty($format)) {
-                throw $exception;
-            }
-            $response = new ResponseBuilder($format);
-            echo $response->getResponseException($exception);
-            exit;
+        if ((Config::getInstance()->General['maintenance_mode'] != 1) || Common::isPhpCliMode()) {
+            return;
         }
+        Common::sendResponseCode(503);
+
+        $logoUrl = null;
+        $faviconUrl = null;
+        try {
+            $logo = new CustomLogo();
+            $logoUrl = $logo->getHeaderLogoUrl();
+            $faviconUrl = $logo->getPathUserFavicon();
+        } catch (Exception $ex) {
+        }
+        $logoUrl = $logoUrl ?: 'plugins/Morpheus/images/logo-header.png';
+        $faviconUrl = $faviconUrl ?: 'plugins/CoreHome/images/favicon.ico';
+
+        $page = file_get_contents(PIWIK_INCLUDE_PATH . '/plugins/Morpheus/templates/maintenance.tpl');
+        $page = str_replace('%logoUrl%', $logoUrl, $page);
+        $page = str_replace('%faviconUrl%', $faviconUrl, $page);
+        $page = str_replace('%piwikTitle%', Piwik::getRandomTitle(), $page);
+        echo $page;
+        exit;
     }
 
     protected function handleSSLRedirection()
@@ -586,7 +473,10 @@ class FrontController extends Singleton
          */
         Piwik::postEvent('Request.dispatch', array(&$module, &$action, &$parameters));
 
-        list($controller, $actionToCall) = $this->makeController($module, $action, $parameters);
+        /** @var ControllerResolver $controllerResolver */
+        $controllerResolver = StaticContainer::get('Piwik\Http\ControllerResolver');
+
+        $controller = $controllerResolver->getController($module, $action, $parameters);
 
         /**
          * Triggered directly before controller actions are dispatched.
@@ -601,7 +491,7 @@ class FrontController extends Singleton
          */
         Piwik::postEvent(sprintf('Controller.%s.%s', $module, $action), array(&$parameters));
 
-        $result = call_user_func_array(array($controller, $actionToCall), $parameters);
+        $result = call_user_func_array($controller, $parameters);
 
         /**
          * Triggered after a controller action is successfully called.
@@ -627,7 +517,32 @@ class FrontController extends Singleton
          * @param array $parameters The arguments passed to the controller action.
          */
         Piwik::postEvent('Request.dispatch.end', array(&$result, $module, $action, $parameters));
+
         return $result;
     }
 
+    /**
+     * This method ensures that Piwik Platform cannot be running when using a NEWER database.
+     */
+    private function throwIfPiwikVersionIsOlderThanDBSchema()
+    {
+        // When developing this situation happens often when switching branches
+        if (Development::isEnabled()) {
+            return;
+        }
+
+        $updater = new Updater();
+
+        $dbSchemaVersion = $updater->getCurrentComponentVersion('core');
+        $current = Version::VERSION;
+        if (-1 === version_compare($current, $dbSchemaVersion)) {
+            $messages = array(
+                Piwik::translate('General_ExceptionDatabaseVersionNewerThanCodebase', array($current, $dbSchemaVersion)),
+                Piwik::translate('General_ExceptionDatabaseVersionNewerThanCodebaseWait'),
+                // we cannot fill in the Super User emails as we are failing before Authentication was ready
+                Piwik::translate('General_ExceptionContactSupportGeneric', array('', ''))
+            );
+            throw new DatabaseSchemaIsNewerThanCodebaseException(implode(" ", $messages));
+        }
+    }
 }

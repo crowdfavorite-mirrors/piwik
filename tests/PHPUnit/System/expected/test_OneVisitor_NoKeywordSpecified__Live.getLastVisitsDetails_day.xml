@@ -8,7 +8,7 @@
 		<actionDetails>
 			<row>
 				<type>action</type>
-				<url>http://example.org/this%20is%20cool!</url>
+				<url>http://example.org/this%20is%20cool!?filter=&lt;script&gt;alert(1);&lt;/script&gt;{&quot;place&quot;:{&quot;place&quot;:&quot;0c5b2444-70a0-4932-980c-b4dc0d3f02b5&quot;}}</url>
 				<pageTitle />
 				<pageIdAction>2</pageIdAction>
 				
@@ -47,7 +47,12 @@
 		<referrerUrl>http://www.google.com.vn/search?q=%3C%3E%26%5C%22the+pdo+extension+is+required+for+this+adapter+but+the+extension+is+not+loaded</referrerUrl>
 		<referrerSearchEngineUrl>http://google.com</referrerSearchEngineUrl>
 		<referrerSearchEngineIcon>plugins/Referrers/images/searchEngines/google.com.png</referrerSearchEngineIcon>
+		<languageCode>fr</languageCode>
+		<language>Français</language>
 		<deviceType>Inconnu</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/unknown.gif</deviceTypeIcon>
+		<deviceBrand>Inconnu</deviceBrand>
+		<deviceModel />
 		<operatingSystem>Bot</operatingSystem>
 		<operatingSystemName>Bot</operatingSystemName>
 		<operatingSystemIcon>plugins/DevicesDetection/images/os/UNK.gif</operatingSystemIcon>
@@ -106,11 +111,13 @@
 		<actionDetails>
 			<row>
 				<type>action</type>
-				<url>http://example.org/this%20is%20cool!</url>
-				<pageTitle>incredible title!</pageTitle>
+				<url>http://example.org/this%20is%20cool!?filter=&lt;script&gt;alert(1);&lt;/script&gt;{&quot;place&quot;:{&quot;place&quot;:&quot;0c5b2444-70a0-4932-980c-b4dc0d3f02b5&quot;}}</url>
+				<pageTitle>incredible title! (Page URL contains a HTML entity)</pageTitle>
 				<pageIdAction>2</pageIdAction>
 				
 				<pageId>1</pageId>
+				<timeSpent>1080</timeSpent>
+				<timeSpentPretty>18 min 0s</timeSpentPretty>
 				<icon />
 				
 			</row>
@@ -121,7 +128,7 @@
 				<revenue>0</revenue>
 				<goalPageId />
 				
-				<url>http://example.org/this%20is%20cool!</url>
+				<url>http://example.org/this%20is%20cool!?filter=&lt;script&gt;alert(1);&lt;/script&gt;{&quot;place&quot;:{&quot;place&quot;:&quot;0c5b2444-70a0-4932-980c-b4dc0d3f02b5&quot;}}</url>
 				<icon>plugins/Morpheus/images/goal.png</icon>
 				
 			</row>
@@ -156,7 +163,12 @@
 		<referrerUrl>http://piwik.org/faq/general/#faq_144</referrerUrl>
 		<referrerSearchEngineUrl>http://google.com</referrerSearchEngineUrl>
 		<referrerSearchEngineIcon>plugins/Referrers/images/searchEngines/google.com.png</referrerSearchEngineIcon>
+		<languageCode>fr</languageCode>
+		<language>Français</language>
 		<deviceType>Inconnu</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/unknown.gif</deviceTypeIcon>
+		<deviceBrand>Inconnu</deviceBrand>
+		<deviceModel />
 		<operatingSystem>Bot</operatingSystem>
 		<operatingSystemName>Bot</operatingSystemName>
 		<operatingSystemIcon>plugins/DevicesDetection/images/os/UNK.gif</operatingSystemIcon>

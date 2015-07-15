@@ -13,6 +13,7 @@ namespace Piwik\Tests\Unit;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\IP;
+use Piwik\Tests\Framework\Mock\TestConfig;
 
 class IPTest extends \PHPUnit_Framework_TestCase
 {
@@ -64,17 +65,6 @@ class IPTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @dataProvider getLong2IPTestData
-     * @group Core
-     */
-    public function testLong2ip($N, $P)
-    {
-        $this->assertEquals($P, IP::long2ip($N), bin2hex($N));
-        // this is our compatibility function
-        $this->assertEquals($P, Common::long2ip($N), bin2hex($N));
-    }
-
-    /**
      * Dataprovider for ip from header tests
      */
     public function getIpFromHeaderTestData()
@@ -97,8 +87,6 @@ class IPTest extends \PHPUnit_Framework_TestCase
      */
     public function testGetIpFromHeader($description, $test)
     {
-        Config::getInstance()->setTestEnvironment();
-
         $_SERVER['REMOTE_ADDR'] = $test[0];
         $_SERVER['HTTP_X_FORWARDED_FOR'] = $test[1];
         Config::getInstance()->General['proxy_client_headers'] = array($test[2]);

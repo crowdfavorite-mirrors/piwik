@@ -9,8 +9,10 @@ namespace Piwik\Tests\System;
 
 use Piwik\Access;
 use Piwik\Plugins\SitesManager\API;
+use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
 use Piwik\Tests\Fixtures\ManySitesImportedLogs;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 
 /**
  * Tests the log importer.
@@ -22,6 +24,13 @@ class ImportLogsTest extends SystemTestCase
 {
     /** @var ManySitesImportedLogs */
     public static $fixture = null; // initialized below class definition
+
+    public function setUp()
+    {
+        parent::setUp();
+
+        $this->resetTestingEnvironmentChanges();
+    }
 
     /**
      * @dataProvider getApiForTesting
@@ -102,9 +111,65 @@ class ImportLogsTest extends SystemTestCase
         $this->assertEquals(1, count($whateverDotCom));
     }
 
+    public function test_LogImporter_RetriesWhenServerFails()
+    {
+        $this->simulateTrackerFailure();
+
+        $logFile = PIWIK_INCLUDE_PATH . '/tests/resources/access-logs/fake_logs_enable_all.log';
+
+        $options = array(
+            '--idsite'                    => self::$fixture->idSite,
+            '--token-auth'                => Fixture::getTokenAuth(),
+            '--retry-max-attempts'        => 5,
+            '--retry-delay'               => 1
+        );
+
+        $output = Fixture::executeLogImporter($logFile, $options, $allowFailure = true);
+        $output = implode("\n", $output);
+
+        for ($i = 2; $i != 6; ++$i) {
+            $this->assertContains("Retrying request, attempt number $i", $output);
+        }
+
+        $this->assertNotContains("Retrying request, attempt number 6", $output);
+
+        $this->assertContains("Max number of attempts reached, server is unreachable!", $output);
+    }
+
+    private function simulateTrackerFailure()
+    {
+        $testingEnvironment = new TestingEnvironmentVariables();
+        $testingEnvironment->_triggerTrackerFailure = true;
+        $testingEnvironment->save();
+    }
+
     public static function getOutputPrefix()
     {
         return 'ImportLogs';
+    }
+
+    private function resetTestingEnvironmentChanges()
+    {
+        $testingEnvironment = new TestingEnvironmentVariables();
+        $testingEnvironment->_triggerTrackerFailure = null;
+        $testingEnvironment->save();
+    }
+
+    public static function provideContainerConfigBeforeClass()
+    {
+        $result = array();
+
+        $testingEnvironment = new TestingEnvironmentVariables();
+        if ($testingEnvironment->_triggerTrackerFailure) {
+            $result['observers.global'] = \DI\add(array(
+                array('Tracker.newHandler', function () {
+                    @http_response_code(500);
+
+                    throw new \Exception("injected exception");
+                })
+            ));
+        }
+        return $result;
     }
 }
 

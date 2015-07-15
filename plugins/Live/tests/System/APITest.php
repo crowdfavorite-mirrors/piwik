@@ -6,7 +6,7 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Plugins\Live\tests\Integration;
+namespace Piwik\Plugins\Live\tests\System;
 
 use Piwik\Date;
 use Piwik\Db;
@@ -68,6 +68,38 @@ class APITest extends SystemTestCase
 
         $counters = $this->api->getCounters($this->idSite, 0);
         $this->assertEquals($this->buildCounter(0, 0, 0, 0), $counters);
+    }
+
+    public function test_GetCounters_ShouldHideAllColumnsIfRequested()
+    {
+        $exampleCounter = $this->buildCounter(0, 0, 0, 0);
+        $counters = $this->api->getCounters($this->idSite, 5, false, array(), array_keys($exampleCounter[0]));
+        $this->assertEquals(array(array()), $counters);
+    }
+
+    public function test_GetCounters_ShouldHideSomeColumnsIfRequested()
+    {
+        $counters = $this->api->getCounters($this->idSite, 20, false, array(), array('visitsConverted', 'visitors'));
+        $this->assertEquals(array(array('visits' => 24, 'actions' => 60)), $counters);
+    }
+
+    public function test_GetCounters_ShouldShowAllColumnsIfRequested()
+    {
+        $counter = $this->buildCounter(24, 60, 20, 40);
+        $counters = $this->api->getCounters($this->idSite, 20, false, array_keys($counter[0]));
+        $this->assertEquals($counter, $counters);
+    }
+
+    public function test_GetCounters_ShouldShowSomeColumnsIfRequested()
+    {
+        $counters = $this->api->getCounters($this->idSite, 20, false, array('visits', 'actions'));
+        $this->assertEquals(array(array('visits' => 24, 'actions' => 60)), $counters);
+    }
+
+    public function test_GetCounters_ShouldHideColumnIfGivenInShowAndHide()
+    {
+        $counters = $this->api->getCounters($this->idSite, 20, false, array('visits', 'actions'), array('actions'));
+        $this->assertEquals(array(array('visits' => 24)), $counters);
     }
 
     private function trackSomeVisits()
@@ -137,16 +169,18 @@ class APITest extends SystemTestCase
 
     private function setSuperUser()
     {
-        $pseudoMockAccess = new FakeAccess();
         FakeAccess::$superUser = true;
-        Access::setSingletonInstance($pseudoMockAccess);
     }
 
     private function setAnonymous()
     {
-        $pseudoMockAccess = new FakeAccess();
-        FakeAccess::$superUser = false;
-        Access::setSingletonInstance($pseudoMockAccess);
+        FakeAccess::clearAccess();
     }
 
+    public static function provideContainerConfigBeforeClass()
+    {
+        return array(
+            'Piwik\Access' => new FakeAccess()
+        );
+    }
 }

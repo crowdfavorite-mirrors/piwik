@@ -166,12 +166,11 @@ class Segment
             if (isset($segment['permission'])
                 && $segment['permission'] != 1
             ) {
-                throw new Exception("You do not have enough permission to access the segment " . $name);
+                throw new NoAccessException("You do not have enough permission to access the segment " . $name);
             }
 
             if ($matchType != SegmentExpression::MATCH_IS_NOT_NULL_NOR_EMPTY
                 && $matchType != SegmentExpression::MATCH_IS_NULL_OR_EMPTY) {
-
                 if (isset($segment['sqlFilterValue'])) {
                     $value = call_user_func($segment['sqlFilterValue'], $value);
                 }
@@ -180,12 +179,18 @@ class Segment
                 if (isset($segment['sqlFilter'])) {
                     $value = call_user_func($segment['sqlFilter'], $value, $segment['sqlSegment'], $matchType, $name);
 
+                    if(is_null($value)) { // null is returned in TableLogAction::getIdActionFromSegment()
+                        return array(null, $matchType, null);
+                    }
+
                     // sqlFilter-callbacks might return arrays for more complex cases
                     // e.g. see TableLogAction::getIdActionFromSegment()
                     if (is_array($value) && isset($value['SQL'])) {
                         // Special case: returned value is a sub sql expression!
                         $matchType = SegmentExpression::MATCH_ACTIONS_CONTAINS;
                     }
+
+
                 }
             }
             break;
@@ -234,14 +239,20 @@ class Segment
      * @param array|string $bind (optional) Bind parameters, eg, `array($col1Value, $col2Value)`.
      * @param false|string $orderBy (optional) Order by clause, eg, `"t1.col1 ASC"`.
      * @param false|string $groupBy (optional) Group by clause, eg, `"t2.col2"`.
-     * @param int $limit Limit by clause
+     * @param int $limit Limit number of result to $limit
+     * @param int $offset Specified the offset of the first row to return
      * @param int If set to value >= 1 then the Select query (and All inner queries) will be LIMIT'ed by this value.
      *              Use only when you're not aggregating or it will sample the data.
      * @return string The entire select query.
      */
-    public function getSelectQuery($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = 0)
+    public function getSelectQuery($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = 0, $offset = 0)
     {
         $segmentExpression = $this->segmentExpression;
+
+        if ($offset > 0) {
+            $limit = (int) $offset . ', ' . (int) $limit;
+        }
+
         $segmentQuery = new LogQueryBuilder($segmentExpression);
         return $segmentQuery->getSelectQueryString($select, $from, $where, $bind, $groupBy, $orderBy, $limit);
     }
@@ -255,5 +266,4 @@ class Segment
     {
         return (string) $this->getString();
     }
-
 }

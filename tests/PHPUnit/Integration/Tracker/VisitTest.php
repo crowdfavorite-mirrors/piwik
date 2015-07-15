@@ -8,10 +8,9 @@
 
 namespace Piwik\Tests\Integration\Tracker;
 
-use Piwik\Access;
 use Piwik\Cache;
 use Piwik\CacheId;
-use Piwik\DataAccess\ArchiveInvalidator;
+use Piwik\Archive\ArchiveInvalidator;
 use Piwik\Date;
 use Piwik\Network\IPUtils;
 use Piwik\Plugin\Manager;
@@ -35,12 +34,11 @@ class VisitTest extends IntegrationTestCase
         parent::setUp();
 
         // setup the access layer
-        $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Access::setSingletonInstance($pseudoMockAccess);
 
         Manager::getInstance()->loadTrackerPlugins();
         Manager::getInstance()->loadPlugin('SitesManager');
+        Visit::$dimensions = null;
     }
 
     /**
@@ -450,6 +448,14 @@ class VisitTest extends IntegrationTestCase
 
         $cache = Cache::getTransientCache();
         $cache->save(CacheId::pluginAware('VisitDimensions'), $dimensions);
+        Visit::$dimensions = null;
+    }
+
+    public function provideContainerConfig()
+    {
+        return array(
+            'Piwik\Access' => new FakeAccess()
+        );
     }
 }
 

@@ -1,6 +1,5 @@
 {
     "Installation": {
-        "CannotConnectToDb": "Veritabanına bağlanamadı",
         "Congratulations": "Tebrikler",
         "CongratulationsHelp": "<p>Tebrikler! Piwik Başarıyla kuruldu.<\/p><p>JavaScript kodunu sayfalarınıza yerleştirdiğinizden emin olun ve ilk ziyaretçilerinizi beklemeye başlayın!<\/p>",
         "DatabaseCreation": "Veritabaı oluşturma",
@@ -10,7 +9,6 @@
         "DatabaseSetupLogin": "Giriş",
         "DatabaseSetupServer": "Veritabanı Sunucusu",
         "DatabaseSetupTablePrefix": "Tablo öneki",
-        "Email": "eposta",
         "Extension": "eklenti",
         "Filesystem": "Dosya sistemi",
         "Installation": "Yükleme",
@@ -19,17 +17,12 @@
         "Legend": "Gösterge",
         "NfsFilesystemWarning": "Sunucunuz NFS dosya sistemini kullanıyor.",
         "Optional": "Opsiyonel",
-        "Password": "Şifre",
         "PasswordDoNotMatch": "Girilen şifreler aynı değil.",
-        "PasswordRepeat": "Şifre (tekrar)",
         "PercentDone": "%s %% tamamlandı",
         "Requirements": "Piwik gereklilikleri",
         "SetupWebsite": "Web sitesi ekle",
         "SetupWebsiteError": "Web site eklenirken bir sorun oluştu.",
-        "SetupWebSiteName": "Web site adı",
         "SetupWebsiteSetupSuccess": "Web site %s başarıyla eklendi.",
-        "SetupWebSiteURL": "Web site adresi",
-        "SuperUserLogin": "Süper kullanıcı giriş",
         "SystemCheck": "Sistem kontrolü",
         "SystemCheckDatabaseHelp": "Piwik mysqli eklentisi ya da PDO ve pdo_mysql eklentilerine ihtiyaç duyar.",
         "SystemCheckError": "Bir hata oluştu. Devam edebilmek için hatayı gidermelisiniz.",
@@ -43,6 +36,7 @@
         "SystemCheckWarning": "Piwik normal olarak çalışacaktır ancak bazı özellikler eksik olacak.",
         "Tables": "Tablolar oluşturuluyor",
         "TablesCreatedSuccess": "Tablolar başarılı bir şekilde yaratıldı!",
-        "Welcome": "Hoşgeldiniz!"
+        "Welcome": "Hoşgeldiniz!",
+        "CannotConnectToDb": "Veritabanına bağlanamadı"
     }
 }
