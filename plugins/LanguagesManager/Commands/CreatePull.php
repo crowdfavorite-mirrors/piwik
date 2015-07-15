@@ -121,8 +121,7 @@ class CreatePull extends TranslationBase
         }
 
         $linesSumByLang = array();
-        $lineChangesCount = count($lineChanges[0]);
-        for ($i = 0; $i < $lineChangesCount; $i++) {
+        for($i=0; $i<count($lineChanges[0]); $i++) {
             @$linesSumByLang[$lineChanges[3][$i]] += $lineChanges[1][$i];
         }
 

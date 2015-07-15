@@ -10,7 +10,6 @@ namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
 use Piwik\DataTable\BaseFilter;
-use Piwik\Metrics;
 
 /**
  * Deletes all rows for which a specific column has a value that is lower than
@@ -61,12 +60,7 @@ class ExcludeLowPopulation extends BaseFilter
     {
         parent::__construct($table);
 
-        $row = $table->getFirstRow();
-        if ($row === false) {
-            return;
-        }
-
-        $this->columnToFilter = $this->selectColumnToExclude($columnToFilter, $row);
+        $this->columnToFilter = $columnToFilter;
 
         if ($minimumValue == 0) {
             if ($minimumPercentageThreshold === false) {
@@ -93,30 +87,5 @@ class ExcludeLowPopulation extends BaseFilter
         };
 
         $table->filter('ColumnCallbackDeleteRow', array($this->columnToFilter, $isValueLowPopulation));
-    }
-
-    /**
-     * Sets the column to be used for Excluding low population
-     *
-     * @param DataTable\Row $row
-     * @return int
-     */
-    private function selectColumnToExclude($columnToFilter, $row)
-    {
-        if ($row->hasColumn($columnToFilter)) {
-            return $columnToFilter;
-        }
-
-        // filter_excludelowpop=nb_visits but the column name is still Metrics::INDEX_NB_VISITS in the table
-        $columnIdToName = Metrics::getMappingFromNameToId();
-        if (isset($columnIdToName[$columnToFilter])) {
-            $column = $columnIdToName[$columnToFilter];
-
-            if ($row->hasColumn($column)) {
-                return $column;
-            }
-        }
-
-        return $columnToFilter;
     }
 }

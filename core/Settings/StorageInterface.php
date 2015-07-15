@@ -1,10 +1,9 @@
 <?php
 /**
- * Piwik - free/libre analytics platform
- *
- * @link http://piwik.org
- * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
- *
+ * Created by PhpStorm.
+ * User: thomassteur
+ * Date: 25.10.13
+ * Time: 13:33
  */
 namespace Piwik\Settings;
 

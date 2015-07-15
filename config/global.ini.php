@@ -769,7 +769,6 @@ Plugins[] = ZenMode
 Plugins[] = LeftMenu
 Plugins[] = Morpheus
 Plugins[] = Contents
-Plugins[] = TestRunner
 Plugins[] = BulkTracking
 Plugins[] = Resolution
 Plugins[] = DevicePlugins

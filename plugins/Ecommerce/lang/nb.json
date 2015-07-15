@@ -1,6 +1,5 @@
 {
     "Ecommerce": {
-        "Sales": "Salg",
-        "SalesAdjective": "Salg %s"
+        "Sales": "Salg"
     }
 }
